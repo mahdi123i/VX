@@ -1,19 +1,3 @@
---[[
-    RESCUED STAND SYSTEM (V16.0 STANDO/MOONSTAND HARDENED)
-    
-    CRITICAL PATCHES APPLIED:
-    ✓ Chat command system works reliably (UI-independent)
-    ✓ Owner logic simplified (LocalPlayer only, no UserId checks)
-    ✓ DetermineActionToken bug fixed (correct parameter passing)
-    ✓ Barrage effectiveness logic fixed (baseline not required initially)
-    ✓ Combat resolver safe (velocity-based, distance-clamped)
-    ✓ Remote manager validated (FireServer existence check)
-    ✓ Stand stability (NetworkOwnership, respawn handling)
-    ✓ All commands work like Stando/Moonstand
-    ✓ LOADSTRING SAFE - NO SYNTAX ERRORS
-    ✓ NO LEADERSTATS DEPENDENCY
-]]
-
 local OWNER_NAME = nil
 
 local function VerifyOwnerInServer()
@@ -1005,28 +989,6 @@ function Combat:StopBarrage()
     end
 end
 
-local ChatNormalizer = {
-    LastChatTime = 0,
-    ChatCooldown = 0.05,
-    Connections = {}
-}
-
-function ChatNormalizer:Normalize(text)
-    if not text or text == "" then return "" end
-    
-    text = text:match("^%s*(.-)%s*$") or text
-    
-    local prefix = ""
-    if text:sub(1, 1) == "." or text:sub(1, 1) == "/" then
-        prefix = text:sub(1, 1)
-        text = text:sub(2)
-    end
-    
-    text = text:lower()
-    
-    return prefix .. text
-end
-
 local Router = {}
 
 function Router:Route(msg, originalMsg)
@@ -1228,6 +1190,28 @@ function Router:Route(msg, originalMsg)
         State.FollowMode = followModes[cmd]
         Notify("FOLLOW", "Mode: " .. followModes[cmd])
     end
+end
+
+local ChatNormalizer = {
+    LastChatTime = 0,
+    ChatCooldown = 0.05,
+    Connections = {}
+}
+
+function ChatNormalizer:Normalize(text)
+    if not text or text == "" then return "" end
+    
+    text = text:match("^%s*(.-)%s*$") or text
+    
+    local prefix = ""
+    if text:sub(1, 1) == "." or text:sub(1, 1) == "/" then
+        prefix = text:sub(1, 1)
+        text = text:sub(2)
+    end
+    
+    text = text:lower()
+    
+    return prefix .. text
 end
 
 function ChatNormalizer:ProcessChat(msg)
