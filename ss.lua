@@ -1,34 +1,22 @@
-local OWNER_NAME = nil
+local OWNER_NAME = "Mahdirml123i"
 
 local function VerifyOwnerInServer()
     local ownerFound = false
     
     pcall(function()
-        if getgenv().Owner and type(getgenv().Owner) == "string" then
-            OWNER_NAME = getgenv().Owner
-        end
-    end)
-    
-    if not OWNER_NAME or OWNER_NAME == "" then
-        OWNER_NAME = "Mahdirml123i"
-    end
-    
-    pcall(function()
         local Players = game:GetService("Players")
         if not Players then return end
         
-        for _, player in pairs(Players:GetPlayers()) do
-            if player and player.Name then
-                if player.Name:lower() == OWNER_NAME:lower() then
-                    ownerFound = true
-                    break
-                end
-            end
+        local LocalPlayer = Players.LocalPlayer
+        if not LocalPlayer then return end
+        
+        if LocalPlayer.Name:lower() == OWNER_NAME:lower() then
+            ownerFound = true
         end
     end)
     
     if not ownerFound then
-        print("[SYSTEM] Owner '" .. OWNER_NAME .. "' not in server - script idle")
+        print("[SYSTEM] Owner '" .. OWNER_NAME .. "' not verified - script idle")
         return false
     end
     
