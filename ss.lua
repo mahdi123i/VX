@@ -1,3 +1,44 @@
+--[[
+DUAL-MODE BOOTSTRAP - Works in ALL executors
+Supports: loadstring executors AND non-loadstring executors
+Architecture: Stando/Moonstand compatible
+]]
+
+local DUAL_MODE_BOOT = {}
+local SCRIPT_GUID = "SS_DUAL_MODE_" .. tostring(math.random(100000, 999999))
+local EXECUTION_GUARD = getgenv()[SCRIPT_GUID]
+
+if EXECUTION_GUARD then
+    print("[BOOT] Script already running - aborting duplicate")
+    return
+end
+
+getgenv()[SCRIPT_GUID] = true
+
+local OWNER_NAME = "Mahdirml123i"
+local LOADSTRING_SUPPORTED = false
+local FALLBACK_MODE = false
+
+local function DetectLoadstring()
+    local hasLoadstring = false
+    pcall(function()
+        if typeof(loadstring) == "function" then
+            hasLoadstring = true
+        end
+    end)
+    return hasLoadstring
+end
+
+LOADSTRING_SUPPORTED = DetectLoadstring()
+
+if LOADSTRING_SUPPORTED then
+    print("[DUAL MODE] loadstring supported - normal execution")
+else
+    print("[DUAL MODE] loadstring NOT supported - fallback require mode")
+    FALLBACK_MODE = true
+end
+
+local MAIN_SCRIPT_SOURCE = [[
 local OWNER_NAME = "Mahdirml123i"
 
 local function VerifyOwnerInServer()
@@ -1482,3 +1523,65 @@ pcall(function()
         end
     end)
 end)
+]]
+
+local function ExecuteViaLoadstring()
+    print("[DUAL MODE] Executing via loadstring...")
+    local success, err = pcall(function()
+        local chunk = loadstring(MAIN_SCRIPT_SOURCE)
+        if chunk then
+            chunk()
+        end
+    end)
+    
+    if not success then
+        print("[ERROR] loadstring execution failed: " .. tostring(err))
+        return false
+    end
+    
+    return true
+end
+
+local function ExecuteViaModuleScript()
+    print("[DUAL MODE] Executing via ModuleScript fallback...")
+    
+    local success, result = pcall(function()
+        local tempModule = Instance.new("ModuleScript")
+        tempModule.Source = MAIN_SCRIPT_SOURCE
+        tempModule.Parent = game:GetService("ServerScriptService") or workspace
+        
+        local execSuccess, execErr = pcall(function()
+            require(tempModule)
+        end)
+        
+        task.wait(0.1)
+        pcall(function()
+            tempModule:Destroy()
+        end)
+        
+        if not execSuccess then
+            print("[ERROR] ModuleScript execution failed: " .. tostring(execErr))
+            return false
+        end
+        
+        return true
+    end)
+    
+    if not success then
+        print("[ERROR] ModuleScript fallback failed: " .. tostring(result))
+        return false
+    end
+    
+    return result
+end
+
+if LOADSTRING_SUPPORTED then
+    if not ExecuteViaLoadstring() then
+        print("[FALLBACK] loadstring failed, attempting ModuleScript...")
+        ExecuteViaModuleScript()
+    end
+else
+    ExecuteViaModuleScript()
+end
+
+print("[BOOT] Ready")
