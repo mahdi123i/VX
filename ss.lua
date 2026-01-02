@@ -1,92 +1,10 @@
---[[
-DUAL-MODE BOOTSTRAP - Works in ALL executors
-Supports: loadstring executors AND non-loadstring executors
-Architecture: Stando/Moonstand compatible
-FIXED: Pure LocalPlayer.Chatted, ZERO UI dependencies
-]]
+local SCRIPT_ID = "DAHOOD_STAND_" .. tostring(math.random(100000, 999999))
+if getgenv()[SCRIPT_ID] then return end
+getgenv()[SCRIPT_ID] = true
 
-local DUAL_MODE_BOOT = {}
-local SCRIPT_GUID = "SS_DUAL_MODE_" .. tostring(math.random(100000, 999999))
-local EXECUTION_GUARD = getgenv()[SCRIPT_GUID]
-
-if EXECUTION_GUARD then
-    print("[BOOT] Script already running - aborting duplicate")
-    return
-end
-
-getgenv()[SCRIPT_GUID] = true
-
-local OWNER_NAME = "Mahdirml123i"
-local LOADSTRING_SUPPORTED = false
-local FALLBACK_MODE = false
-
-local function DetectLoadstring()
-    local hasLoadstring = false
-    pcall(function()
-        if typeof(loadstring) == "function" then
-            hasLoadstring = true
-        end
-    end)
-    return hasLoadstring
-end
-
-LOADSTRING_SUPPORTED = DetectLoadstring()
-
-if LOADSTRING_SUPPORTED then
-    print("[DUAL MODE] loadstring supported - normal execution")
-else
-    print("[DUAL MODE] loadstring NOT supported - fallback require mode")
-    FALLBACK_MODE = true
-end
-
-local MAIN_SCRIPT_SOURCE = [[
-local OWNER_NAME = "Mahdirml123i"
-
-local function VerifyOwnerInServer()
-    local ownerFound = false
-    
-    pcall(function()
-        local Players = game:GetService("Players")
-        if not Players then return end
-        
-        local LocalPlayer = Players.LocalPlayer
-        if not LocalPlayer then return end
-        
-        if LocalPlayer.Name:lower() == OWNER_NAME:lower() then
-            ownerFound = true
-        end
-    end)
-    
-    if not ownerFound then
-        print("[SYSTEM] Owner '" .. OWNER_NAME .. "' not verified - script idle")
-        return false
-    end
-    
-    print("[OWNER] Verified: " .. OWNER_NAME)
-    return true
-end
-
-if not VerifyOwnerInServer() then
-    return
-end
-
-local function FAST_BOOT()
-    local localPlayer = nil
-    pcall(function()
-        localPlayer = game:GetService("Players").LocalPlayer
-    end)
-    
-    if not localPlayer then
-        print("[BOOT] LocalPlayer not available")
-        return false
-    end
-    
-    print("[BOOT] Ready")
-    return true
-end
-
-if not FAST_BOOT() then
-    print("[FATAL] Fast boot failed")
+local DA_HOOD_PLACE_ID = 2627663541
+if game.PlaceId ~= DA_HOOD_PLACE_ID then
+    print("[STAND] Not in Da Hood - aborting")
     return
 end
 
@@ -95,63 +13,25 @@ local RunService = game:GetService("RunService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local LocalPlayer = Players.LocalPlayer
 
+if not LocalPlayer then
+    print("[STAND] No LocalPlayer")
+    return
+end
+
 local State = {
     IsSummoned = false,
-    CurrentStand = "Star Platinum",
-    FollowMode = "Back",
-    AttackMode = "Combat",
     Target = nil,
     AutoKill = false,
-    Resolver = true,
-    BarrageActive = false,
-    BarrageConnection = nil,
-    Connections = {},
     StandModel = nil,
     StandRoot = nil,
-    StandBP = nil,
-    StandBG = nil,
-    LastAttackTime = 0,
-    LastBarrageTime = 0,
     FollowConnection = nil,
-    ResolverConnection = nil,
-    LastTargetLossNotify = 0,
-    AutoKillStartTime = 0,
-    ConsecutiveAttackFailures = 0,
-    CombatDisabled = false,
-    BarrageHitCount = 0,
-    LastBarrageHitTime = 0,
-    BarrageDisabled = false,
-    TargetHealthHistory = {},
-    LastHealthCheckTime = 0,
-    NoEffectCounter = 0,
-    BarrageEffectivenessNotified = false,
-    LastAttackAttemptTime = 0,
-    BarrageConfirmedEffects = 0,
-    SingleAttackConfirmedEffects = 0,
-    BarrageValidationStartTime = 0,
-    SingleAttackValidationStartTime = 0,
-    HasConfirmedSingleAttack = false
+    AutoKillConnection = nil,
+    LastAttackTime = 0,
+    AttackSpeed = 0.05,
+    ChatHooked = false
 }
 
 local Config = {
-    Prefix = ".",
-    FollowOffsets = {
-        Back = CFrame.new(-2.5, 2.5, 3.5),
-        Left = CFrame.new(-5, 2, 0),
-        Right = CFrame.new(5, 2, 0),
-        Under = CFrame.new(0, -8, 0),
-        Alt = CFrame.new(0, 5, 5),
-        Upright = CFrame.new(4, 7, 0),
-        Upleft = CFrame.new(-4, 7, 0),
-        Upcenter = CFrame.new(0, 10, 0)
-    },
-    AttackModes = {
-        Combat = { range = 2.8, attackSpeed = 0.05, minRange = 1.0, maxRange = 4.0 },
-        Knife = { range = 1.5, attackSpeed = 0.03, minRange = 0.5, maxRange = 2.5 },
-        Whip = { range = 5.0, attackSpeed = 0.08, minRange = 2.0, maxRange = 7.0 },
-        Pitch = { range = 3.5, attackSpeed = 0.06, minRange = 1.5, maxRange = 5.5 },
-        Sign = { range = 4.0, attackSpeed = 0.07, minRange = 1.5, maxRange = 6.0 }
-    },
     Locations = {
         bank = Vector3.new(-402, 21, -299),
         roof = Vector3.new(-454, 50, -284),
@@ -173,31 +53,13 @@ local Config = {
         boxing = Vector3.new(-1200, 21, -1200),
         bull = Vector3.new(-1300, 21, -1300),
         safe1 = Vector3.new(-300, 21, -400)
-    },
-    AutoKillMaxTimeout = 30,
-    AutoKillMaxDistance = 500,
-    AttackFailureThreshold = 10,
-    HealthCheckInterval = 0.3,
-    NoEffectThreshold = 5,
-    BarrageValidationWindow = 3.0,
-    SingleAttackValidationWindow = 3.0,
-    BarrageMinEffectivenessRatio = 1.2,
-    CausalityWindow = 0.5
+    }
 }
 
-local function Notify(title, text)
-    if not title or not text then return end
-    pcall(function()
-        local starterGui = game:GetService("StarterGui")
-        if starterGui and typeof(starterGui.SetCore) == "function" then
-            starterGui:SetCore("SendNotification", {
-                Title = tostring(title),
-                Text = tostring(text),
-                Duration = 5
-            })
-        end
-    end)
-end
+local RemoteManager = {
+    Primary = nil,
+    Found = false
+}
 
 local function SafeGetRoot(char)
     if not char or not char.Parent then return nil end
@@ -214,13 +76,9 @@ local function GetPlayer(name)
     local result = nil
     pcall(function()
         for _, v in pairs(Players:GetPlayers()) do
-            local vName = v.Name
-            local vDisplayName = v.DisplayName
-            if vName and vDisplayName then
-                if vName:lower():sub(1, #name) == name or vDisplayName:lower():sub(1, #name) == name then
-                    result = v
-                    break
-                end
+            if v.Name:lower():find(name, 1, true) or v.DisplayName:lower():find(name, 1, true) then
+                result = v
+                break
             end
         end
     end)
@@ -234,12 +92,7 @@ local function IsPlayerValid(player)
         char = player.Character
     end)
     if not char then return false end
-    local root = SafeGetRoot(char)
-    return root ~= nil
-end
-
-local function ClampRange(range, minRange, maxRange)
-    return math.max(minRange, math.min(range, maxRange))
+    return SafeGetRoot(char) ~= nil
 end
 
 local function GetTargetHumanoid(player)
@@ -251,569 +104,122 @@ local function GetTargetHumanoid(player)
     return hum
 end
 
-local ServerAssist = {
-    CombatQueue = {},
-    ConfirmedHits = {},
-    LastConfirmedTime = 0,
-    DynamicCooldown = 0.05,
-    BaseCooldown = 0.05,
-    FailureCount = 0,
-    SuccessCount = 0,
-    LastSuccessfulToken = "Punch",
-    LastSuccessfulDistance = 2.8,
-    ServerTickAlignment = 0,
-    HitConfirmationThreshold = 0.1,
-    AdaptiveMode = false,
-    AdaptiveModeStartTime = 0,
-    RemoteIntelligence = {
-        ["Punch"] = { successes = 0, failures = 0, avgDistance = 2.8 },
-        ["Heavy"] = { successes = 0, failures = 0, avgDistance = 2.8 }
-    }
-}
-
-function ServerAssist:QueueAction(targetPlayer, actionToken, distance)
-    if not targetPlayer or not IsPlayerValid(targetPlayer) then return false end
-    
-    table.insert(self.CombatQueue, {
-        targetPlayer = targetPlayer,
-        actionToken = actionToken,
-        distance = distance,
-        queueTime = tick(),
-        retryCount = 0,
-        maxRetries = 2,
-        confirmed = false
-    })
-    
-    return true
-end
-
-function ServerAssist:ProcessQueue()
-    local now = tick()
-    local processed = {}
-    
-    for i, action in ipairs(self.CombatQueue) do
-        if not action.confirmed and (now - action.queueTime) < 1.0 then
-            if (now - self.LastConfirmedTime) >= self.DynamicCooldown then
-                local success = self:FireWithIntelligence(action)
-                
-                if success then
-                    action.confirmed = true
-                    self.SuccessCount = self.SuccessCount + 1
-                    self.FailureCount = 0
-                    self.LastConfirmedTime = now
-                    self.LastSuccessfulToken = action.actionToken
-                    self.LastSuccessfulDistance = action.distance
-                    
-                    self.RemoteIntelligence[action.actionToken].successes = 
-                        self.RemoteIntelligence[action.actionToken].successes + 1
-                    
-                    table.insert(processed, i)
-                else
-                    action.retryCount = action.retryCount + 1
-                    self.FailureCount = self.FailureCount + 1
-                    
-                    if action.retryCount >= action.maxRetries then
-                        table.insert(processed, i)
-                    end
-                    
-                    self.RemoteIntelligence[action.actionToken].failures = 
-                        self.RemoteIntelligence[action.actionToken].failures + 1
-                end
-            end
-        elseif (now - action.queueTime) >= 1.0 then
-            table.insert(processed, i)
-        end
-    end
-    
-    for i = #processed, 1, -1 do
-        table.remove(self.CombatQueue, processed[i])
-    end
-    
-    self:UpdateAdaptiveCooldown()
-end
-
-function ServerAssist:FireWithIntelligence(action)
-    if not RemoteManager.Primary then return false end
-    if not IsPlayerValid(action.targetPlayer) then return false end
-    
-    local myChar = LocalPlayer.Character
-    if not myChar then return false end
-    
-    local myRoot = SafeGetRoot(myChar)
-    local targetChar = action.targetPlayer.Character
-    if not targetChar then return false end
-    
-    local targetRoot = SafeGetRoot(targetChar)
-    if not myRoot or not targetRoot then return false end
-    
-    local preHitHealth = GetTargetHumanoid(action.targetPlayer)
-    if not preHitHealth then return false end
-    preHitHealth = preHitHealth.Health
-    
-    local success = pcall(function()
-        if RemoteManager.Primary and typeof(RemoteManager.Primary.FireServer) == "function" then
-            RemoteManager.Primary:FireServer(
-                "Combat",
-                action.actionToken,
-                myChar,
-                targetChar,
-                targetRoot.Position
-            )
+local function Notify(title, text)
+    pcall(function()
+        local starterGui = game:GetService("StarterGui")
+        if starterGui and typeof(starterGui.SetCore) == "function" then
+            starterGui:SetCore("SendNotification", {
+                Title = tostring(title),
+                Text = tostring(text),
+                Duration = 5
+            })
         end
     end)
-    
-    if not success then return false end
-    
-    task.wait(0.02)
-    
-    local postHitHealth = GetTargetHumanoid(action.targetPlayer)
-    if postHitHealth then
-        postHitHealth = postHitHealth.Health
-        local healthDelta = preHitHealth - postHitHealth
-        
-        if healthDelta > self.HitConfirmationThreshold then
-            self.ConfirmedHits[action.targetPlayer.UserId] = {
-                time = tick(),
-                damage = healthDelta,
-                token = action.actionToken
-            }
-            return true
-        end
-    end
-    
-    return false
 end
-
-function ServerAssist:UpdateAdaptiveCooldown()
-    local totalAttempts = self.SuccessCount + self.FailureCount
-    
-    if totalAttempts > 0 then
-        local successRate = self.SuccessCount / totalAttempts
-        
-        if successRate > 0.85 then
-            self.DynamicCooldown = math.max(0.03, self.BaseCooldown - 0.02)
-            self.AdaptiveMode = false
-        elseif successRate < 0.5 then
-            self.DynamicCooldown = self.BaseCooldown + 0.03
-            
-            if not self.AdaptiveMode then
-                self.AdaptiveMode = true
-                self.AdaptiveModeStartTime = tick()
-            end
-        else
-            self.DynamicCooldown = self.BaseCooldown
-            self.AdaptiveMode = false
-        end
-    end
-end
-
-function ServerAssist:GetBestActionToken(targetPlayer)
-    if not IsPlayerValid(targetPlayer) then return "Punch" end
-    
-    local hum = GetTargetHumanoid(targetPlayer)
-    if not hum then return "Punch" end
-    
-    local intel = self.RemoteIntelligence
-    local punchSuccessRate = intel["Punch"].successes / math.max(1, intel["Punch"].successes + intel["Punch"].failures)
-    local heavySuccessRate = intel["Heavy"].successes / math.max(1, intel["Heavy"].successes + intel["Heavy"].failures)
-    
-    if heavySuccessRate > punchSuccessRate and hum.Health <= 15 then
-        return "Heavy"
-    end
-    
-    return "Punch"
-end
-
-function ServerAssist:Reset()
-    self.CombatQueue = {}
-    self.ConfirmedHits = {}
-    self.FailureCount = 0
-    self.SuccessCount = 0
-    self.AdaptiveMode = false
-    self.DynamicCooldown = self.BaseCooldown
-end
-
-local EffectVerifier = {
-    AttackQueues = {},
-    LastEffectCheckTime = 0,
-    EffectCheckInterval = Config.HealthCheckInterval
-}
-
-function EffectVerifier:GetOrCreateQueue(playerId)
-    if not self.AttackQueues[playerId] then
-        self.AttackQueues[playerId] = {}
-    end
-    return self.AttackQueues[playerId]
-end
-
-function EffectVerifier:RegisterAttackAttempt(player, isBarrage)
-    if not IsPlayerValid(player) then return end
-    
-    local hum = GetTargetHumanoid(player)
-    if not hum then return end
-    
-    local queue = self:GetOrCreateQueue(player.UserId)
-    
-    table.insert(queue, {
-        attemptTime = tick(),
-        preAttackHealth = hum.Health,
-        isBarrage = isBarrage,
-        consumed = false
-    })
-end
-
-function EffectVerifier:CheckAndConsumeOldestEffect(player)
-    if not IsPlayerValid(player) then return false end
-    local hum = GetTargetHumanoid(player)
-    if not hum then return false end
-    
-    local queue = self:GetOrCreateQueue(player.UserId)
-    
-    for i, attempt in ipairs(queue) do
-        if attempt.consumed then
-            goto continue
-        end
-        
-        local currentTime = tick()
-        local timeSinceAttempt = currentTime - attempt.attemptTime
-        
-        if timeSinceAttempt > Config.CausalityWindow then
-            attempt.consumed = true
-            goto continue
-        end
-        
-        local healthDifference = attempt.preAttackHealth - hum.Health
-        
-        if healthDifference > 0 then
-            attempt.consumed = true
-            return true, attempt.isBarrage
-        end
-        
-        ::continue::
-    end
-    
-    return false, nil
-end
-
-function EffectVerifier:CleanupExpiredAttempts(player)
-    local queue = self:GetOrCreateQueue(player.UserId)
-    local currentTime = tick()
-    
-    local i = 1
-    while i <= #queue do
-        local attempt = queue[i]
-        if attempt.consumed or (currentTime - attempt.attemptTime > Config.CausalityWindow) then
-            table.remove(queue, i)
-        else
-            i = i + 1
-        end
-    end
-end
-
-function EffectVerifier:ResetTracking(player)
-    if player then
-        self.AttackQueues[player.UserId] = nil
-    else
-        self.AttackQueues = {}
-    end
-end
-
-local RemoteManager = {
-    Primary = nil,
-    RemoteFound = false,
-    ConsecutiveFailures = 0,
-    LastFireTime = 0,
-    FireCooldown = 0.01,
-    LastStompTime = 0,
-    StompCooldown = 2.0
-}
 
 function RemoteManager:Scan()
-    if self.RemoteFound then return end
+    if self.Found then return end
     
     pcall(function()
         local mainEvent = ReplicatedStorage:FindFirstChild("MainEvent")
         if mainEvent and (mainEvent:IsA("RemoteEvent") or mainEvent:IsA("RemoteFunction")) then
             if typeof(mainEvent.FireServer) == "function" then
                 self.Primary = mainEvent
-                self.RemoteFound = true
-                print("[REMOTE] Found: MainEvent (Da Hood)")
+                self.Found = true
+                print("[REMOTE] Found MainEvent")
                 return
             end
         end
         
-        local combatKeywords = {"attack", "damage", "hit", "punch", "knife", "stomp", "carry", "grab", "knock", "down", "combat", "action", "input", "fire", "event"}
-        
-        local function scanRecursive(parent, depth)
-            if depth > 10 then return end
-            
+        local keywords = {"attack", "damage", "hit", "punch", "combat", "action"}
+        local function scan(parent, depth)
+            if depth > 8 then return end
             pcall(function()
                 for _, obj in pairs(parent:GetChildren()) do
                     if (obj:IsA("RemoteEvent") or obj:IsA("RemoteFunction")) and typeof(obj.FireServer) == "function" then
-                        local lowerName = obj.Name:lower()
-                        for _, keyword in ipairs(combatKeywords) do
-                            if lowerName:find(keyword) then
+                        local name = obj.Name:lower()
+                        for _, kw in ipairs(keywords) do
+                            if name:find(kw) then
                                 self.Primary = obj
-                                self.RemoteFound = true
-                                print("[REMOTE] Found: " .. obj.Name)
+                                self.Found = true
+                                print("[REMOTE] Found " .. obj.Name)
                                 return
                             end
                         end
                     end
-                    scanRecursive(obj, depth + 1)
+                    scan(obj, depth + 1)
                 end
             end)
         end
-        
-        scanRecursive(ReplicatedStorage, 0)
+        scan(ReplicatedStorage, 0)
     end)
-    
-    if not self.RemoteFound then
-        print("[REMOTE] Not found - combat disabled")
-    end
 end
 
-local function DetermineActionToken(targetPlayer)
-    if not targetPlayer or not IsPlayerValid(targetPlayer) then 
-        return "Punch" 
-    end
-    
-    local hum = GetTargetHumanoid(targetPlayer)
-    if not hum then 
-        return "Punch" 
-    end
-    
-    if hum.Health <= 10 then
-        return "Heavy"
-    end
-    
-    return "Punch"
-end
-
-function RemoteManager:Fire(targetPlayer)
-    if not self.Primary then
-        self.ConsecutiveFailures = self.ConsecutiveFailures + 1
-        return false
-    end
-    
-    if not targetPlayer or not IsPlayerValid(targetPlayer) then
-        return false
-    end
-    
-    local now = tick()
-    if now - self.LastFireTime < self.FireCooldown then
-        return false
-    end
-    self.LastFireTime = now
-    
-    local success = pcall(function()
-        if self.Primary and typeof(self.Primary.FireServer) == "function" then
-            local myChar = LocalPlayer.Character
-            if not myChar then return end
-            
-            local myRoot = SafeGetRoot(myChar)
-            local targetChar = targetPlayer.Character
-            if not targetChar then return end
-            
-            local targetRoot = SafeGetRoot(targetChar)
-            
-            if not myRoot or not targetRoot then return end
-            
-            local actionToken = DetermineActionToken(targetPlayer)
-            
-            self.Primary:FireServer(
-                "Combat",
-                actionToken,
-                myChar,
-                targetChar,
-                targetRoot.Position
-            )
-        end
-    end)
-    
-    if success then
-        self.ConsecutiveFailures = 0
-    else
-        self.ConsecutiveFailures = self.ConsecutiveFailures + 1
-    end
-    
-    return success
-end
-
-function RemoteManager:AttemptStomp(targetPlayer)
-    if not self.Primary then return false end
-    if not targetPlayer or not IsPlayerValid(targetPlayer) then return false end
-    
-    local now = tick()
-    if now - self.LastStompTime < self.StompCooldown then
-        return false
-    end
-    
-    local hum = GetTargetHumanoid(targetPlayer)
-    if not hum then return false end
-    
-    if hum.Health > 5 then return false end
-    
-    local targetChar = targetPlayer.Character
-    if not targetChar then return false end
-    
-    local targetRoot = SafeGetRoot(targetChar)
-    if not targetRoot then return false end
-    
-    local velocity = targetRoot.AssemblyLinearVelocity.Magnitude
-    if velocity > 10 then return false end
-    
-    self.LastStompTime = now
-    
-    local success = pcall(function()
-        if self.Primary and typeof(self.Primary.FireServer) == "function" then
-            self.Primary:FireServer(
-                "Stomp",
-                targetChar
-            )
-        end
-    end)
-    
-    return success
-end
-
-function RemoteManager:CheckFailureThreshold()
-    if self.ConsecutiveFailures >= Config.AttackFailureThreshold then
-        if not State.CombatDisabled then
-            print("[REMOTE] Disabled after " .. Config.AttackFailureThreshold .. " failures")
-            State.CombatDisabled = true
-        end
-        return true
-    end
-    return false
-end
-
-local StandBuilder = {}
-
-function StandBuilder:ValidateFollowOffset(offset)
-    local pos = offset.Position
-    local magnitude = pos.Magnitude
-    if magnitude > 20 then
-        return CFrame.new(pos.Unit * 20)
-    end
-    return offset
-end
-
-function StandBuilder:Cleanup()
-    if State.FollowConnection then
-        pcall(function() State.FollowConnection:Disconnect() end)
-        State.FollowConnection = nil
-    end
-    
+local function CreateStand()
     if State.StandModel then
         pcall(function() State.StandModel:Destroy() end)
     end
     
-    for name, conn in pairs(State.Connections) do
-        if conn and typeof(conn) == "RBXScriptConnection" then
-            pcall(function() conn:Disconnect() end)
-        end
-    end
-    
-    State.Connections = {}
-    State.StandModel = nil
-    State.StandRoot = nil
-    State.StandBP = nil
-    State.StandBG = nil
-end
-
-function StandBuilder:Create()
-    self:Cleanup()
-    
-    local char = LocalPlayer.Character
-    local root = SafeGetRoot(char)
-    if not root then
-        Notify("ERROR", "Cannot create Stand: No character root")
-        return
-    end
-
     local model = nil
     pcall(function()
         model = Instance.new("Model", workspace)
-        model.Name = "RescuedStand_" .. LocalPlayer.Name
+        model.Name = "Stand_" .. LocalPlayer.Name
     end)
     
-    if not model then
-        Notify("ERROR", "Cannot create Stand model")
-        return
+    if not model then 
+        print("[STAND] Failed to create model")
+        return 
     end
     
-    State.StandModel = model
-
-    local sRoot = nil
+    local root = nil
     pcall(function()
-        sRoot = Instance.new("Part", model)
-        sRoot.Name = "HumanoidRootPart"
-        sRoot.Size = Vector3.new(2, 2, 1)
-        sRoot.Transparency = 0.5
-        sRoot.CanCollide = false
-        sRoot.Material = Enum.Material.ForceField
-        sRoot.Color = Color3.fromRGB(0, 255, 255)
+        root = Instance.new("Part", model)
+        root.Name = "HumanoidRootPart"
+        root.Size = Vector3.new(2, 2, 1)
+        root.Transparency = 0.5
+        root.CanCollide = false
+        root.Material = Enum.Material.ForceField
+        root.Color = Color3.fromRGB(0, 255, 255)
     end)
     
-    if not sRoot then
-        Notify("ERROR", "Cannot create Stand root part")
-        return
+    if not root then 
+        print("[STAND] Failed to create root part")
+        return 
     end
     
-    State.StandRoot = sRoot
-
-    local hum = nil
     pcall(function()
-        hum = Instance.new("Humanoid", model)
+        local hum = Instance.new("Humanoid", model)
         hum.DisplayDistanceType = Enum.HumanoidDisplayDistanceType.None
     end)
-
-    local bp = nil
+    
     pcall(function()
-        bp = Instance.new("BodyPosition", sRoot)
+        local bp = Instance.new("BodyPosition", root)
         bp.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
         bp.P = 25000
         bp.D = 1200
     end)
     
-    if not bp then
-        Notify("ERROR", "Cannot create BodyPosition")
-        return
-    end
-    
-    State.StandBP = bp
-
-    local bg = nil
     pcall(function()
-        bg = Instance.new("BodyGyro", sRoot)
+        local bg = Instance.new("BodyGyro", root)
         bg.MaxTorque = Vector3.new(math.huge, math.huge, math.huge)
         bg.P = 25000
     end)
     
-    if not bg then
-        Notify("ERROR", "Cannot create BodyGyro")
-        return
-    end
-    
-    State.StandBG = bg
-
     pcall(function()
-        if sRoot and typeof(sRoot.SetNetworkOwner) == "function" then
-            sRoot:SetNetworkOwner(LocalPlayer)
+        if typeof(root.SetNetworkOwner) == "function" then
+            root:SetNetworkOwner(LocalPlayer)
         end
     end)
-
-    self:SetupFollowLoop()
-end
-
-function StandBuilder:SetupFollowLoop()
+    
+    State.StandModel = model
+    State.StandRoot = root
+    
     if State.FollowConnection then
         pcall(function() State.FollowConnection:Disconnect() end)
     end
     
     State.FollowConnection = RunService.Heartbeat:Connect(function()
-        if not State.IsSummoned or not State.StandRoot or not State.StandBP or not State.StandBG then
+        if not State.IsSummoned or not State.StandRoot or not State.StandRoot.Parent then
             return
         end
         
@@ -823,623 +229,320 @@ function StandBuilder:SetupFollowLoop()
         local myRoot = SafeGetRoot(myChar)
         if not myRoot then return end
         
-        local offset = Config.FollowOffsets[State.FollowMode] or Config.FollowOffsets.Back
-        offset = self:ValidateFollowOffset(offset)
-        local targetCF = myRoot.CFrame * offset
+        local bp = State.StandRoot:FindFirstChild("BodyPosition")
+        local bg = State.StandRoot:FindFirstChild("BodyGyro")
         
-        pcall(function()
-            State.StandBP.Position = targetCF.Position
-            State.StandBG.CFrame = targetCF
-        end)
+        if bp and bg then
+            local offset = CFrame.new(-2.5, 2.5, 3.5)
+            local targetCF = myRoot.CFrame * offset
+            
+            pcall(function()
+                bp.Position = targetCF.Position
+                bg.CFrame = targetCF
+            end)
+        end
     end)
-end
-
-local Combat = {}
-
-function Combat:GetAttackConfig()
-    return Config.AttackModes[State.AttackMode] or Config.AttackModes.Combat
-end
-
-function Combat:ValidateRange(range)
-    local config = self:GetAttackConfig()
-    return ClampRange(range, config.minRange, config.maxRange)
-end
-
-function Combat:Attack(target, isBarrage)
-    if State.CombatDisabled then return false end
-    if not IsPlayerValid(target) then return false end
-    if not State.IsSummoned then return false end
     
-    local config = self:GetAttackConfig()
-    if not config then return false end
+    print("[STAND] Created successfully")
+end
+
+local function DestroyStand()
+    if State.FollowConnection then
+        pcall(function() State.FollowConnection:Disconnect() end)
+        State.FollowConnection = nil
+    end
+    
+    if State.StandModel then
+        pcall(function() State.StandModel:Destroy() end)
+        State.StandModel = nil
+        State.StandRoot = nil
+    end
+    
+    print("[STAND] Destroyed")
+end
+
+local function Attack(target)
+    if not RemoteManager.Primary or not IsPlayerValid(target) then return end
     
     local now = tick()
-    
-    if now - State.LastAttackTime < config.attackSpeed then
-        return false
-    end
+    if now - State.LastAttackTime < State.AttackSpeed then return end
     State.LastAttackTime = now
     
-    EffectVerifier:RegisterAttackAttempt(target, isBarrage)
-    State.LastAttackAttemptTime = now
+    local myChar = LocalPlayer.Character
+    if not myChar then return end
     
-    local actionToken = ServerAssist:GetBestActionToken(target)
-    local validatedRange = self:ValidateRange(config.range)
+    local myRoot = SafeGetRoot(myChar)
+    local targetChar = target.Character
+    if not targetChar then return end
     
-    ServerAssist:QueueAction(target, actionToken, validatedRange)
+    local targetRoot = SafeGetRoot(targetChar)
+    if not myRoot or not targetRoot then return end
     
-    if ServerAssist.SuccessCount > 0 then
-        State.ConsecutiveAttackFailures = 0
-    else
-        State.ConsecutiveAttackFailures = State.ConsecutiveAttackFailures + 1
-    end
-    
-    if State.ConsecutiveAttackFailures >= Config.AttackFailureThreshold then
-        if not State.CombatDisabled then
-            print("[REMOTE] Disabled after " .. Config.AttackFailureThreshold .. " failures")
-            State.CombatDisabled = true
-        end
-    end
-    
-    return true
-end
-
-function Combat:Barrage()
-    if State.CombatDisabled then return false end
-    if State.BarrageDisabled then return false end
-    if not State.Target or not IsPlayerValid(State.Target) then return false end
-    if not State.IsSummoned then return false end
-    if State.BarrageActive then return false end
-    
-    State.BarrageActive = true
-    State.BarrageConfirmedEffects = 0
-    State.BarrageValidationStartTime = tick()
-    State.BarrageEffectivenessNotified = false
-    
-    if State.BarrageConnection then
-        pcall(function() State.BarrageConnection:Disconnect() end)
-    end
-    
-    local barrageStartTime = tick()
-    
-    State.BarrageConnection = RunService.Heartbeat:Connect(function()
-        if not State.BarrageActive then
-            if State.BarrageConnection then
-                pcall(function() State.BarrageConnection:Disconnect() end)
-                State.BarrageConnection = nil
-            end
-            return
-        end
-        
-        if not State.Target or not IsPlayerValid(State.Target) or not State.IsSummoned then
-            State.BarrageActive = false
-            if State.BarrageConnection then
-                pcall(function() State.BarrageConnection:Disconnect() end)
-                State.BarrageConnection = nil
-            end
-            return
-        end
-        
-        local elapsedTime = tick() - barrageStartTime
-        
-        if elapsedTime > Config.BarrageValidationWindow and not State.BarrageEffectivenessNotified then
-            State.BarrageEffectivenessNotified = true
-            
-            if State.SingleAttackConfirmedEffects > 0 then
-                local effectivenessRatio = State.BarrageConfirmedEffects / State.SingleAttackConfirmedEffects
-                
-                if effectivenessRatio < Config.BarrageMinEffectivenessRatio then
-                    State.BarrageActive = false
-                    State.BarrageDisabled = true
-                    if State.BarrageConnection then
-                        pcall(function() State.BarrageConnection:Disconnect() end)
-                        State.BarrageConnection = nil
-                    end
-                    Notify("BARRAGE", "Disabled: no effectiveness gain")
-                    return
-                end
-            end
-        end
-        
-        local config = self:GetAttackConfig()
-        local now = tick()
-        if now - State.LastBarrageTime >= config.attackSpeed then
-            State.LastBarrageTime = now
-            self:Attack(State.Target, true)
-        end
+    pcall(function()
+        RemoteManager.Primary:FireServer("Combat", "Punch", myChar, targetChar, targetRoot.Position)
     end)
+end
+
+local function HandleCommand(msg)
+    if not msg or msg == "" then return end
     
-    return true
-end
-
-function Combat:StopBarrage()
-    State.BarrageActive = false
-    if State.BarrageConnection then
-        pcall(function() State.BarrageConnection:Disconnect() end)
-        State.BarrageConnection = nil
-    end
-end
-
-local Router = {}
-
-function Router:NormalizeMessage(msg)
-    if not msg or msg == "" then return "" end
     msg = msg:match("^%s*(.-)%s*$") or msg
-    return msg:lower()
-end
-
-function Router:ParseCommand(msg)
-    if not msg or msg == "" then return nil, nil end
     
-    local normalized = self:NormalizeMessage(msg)
-    if not normalized or normalized == "" then return nil, nil end
-    
-    local prefix = Config.Prefix
-    if normalized:sub(1, 1) ~= prefix then
-        return nil, nil
+    if msg:sub(1, 1) ~= "." then 
+        return 
     end
     
-    local cmdPart = normalized:sub(2)
+    local cmd = msg:sub(2):lower()
     local args = {}
-    
-    for arg in cmdPart:gmatch("%S+") do
+    for arg in cmd:gmatch("%S+") do
         table.insert(args, arg)
     end
     
-    if #args == 0 then return nil, nil end
+    if #args == 0 then return end
     
-    local cmd = args[1]
-    return cmd, args
-end
-
-function Router:Route(msg)
-    if not msg or msg == "" then return end
+    local command = args[1]
     
-    local cmd, args = self:ParseCommand(msg)
+    print("[CHAT] Received: " .. msg .. " | Parsed: " .. command)
     
-    if not cmd then
-        return
-    end
-    
-    if cmd == "s" or cmd == "summon" then
+    if command == "s" or command == "summon" then
+        print("[CMD] Summon triggered")
         if not State.IsSummoned then
             State.IsSummoned = true
-            State.CombatDisabled = false
-            State.BarrageDisabled = false
-            State.ConsecutiveAttackFailures = 0
-            State.NoEffectCounter = 0
-            State.SingleAttackConfirmedEffects = 0
-            State.BarrageConfirmedEffects = 0
-            State.SingleAttackValidationStartTime = tick()
-            State.HasConfirmedSingleAttack = false
-            EffectVerifier:ResetTracking()
-            StandBuilder:Create()
-            Notify("SYSTEM", "Stand Summoned")
+            State.Target = nil
+            State.AutoKill = false
+            CreateStand()
+            Notify("STAND", "Summoned")
+            print("[STATE] IsSummoned = true")
+        else
+            print("[STATE] Already summoned")
         end
     
-    elseif cmd == "vanish" then
+    elseif command == "uns" or command == "unsummon" or command == "vanish" then
+        print("[CMD] Vanish triggered")
         if State.IsSummoned then
             State.IsSummoned = false
-            Combat:StopBarrage()
             State.AutoKill = false
             State.Target = nil
-            Notify("SYSTEM", "Stand Vanished")
-        end
-    
-    elseif cmd == "combat" then
-        State.AttackMode = "Combat"
-        Notify("MODE", "Combat | Range: 2.8 | Speed: 0.05s")
-    
-    elseif cmd == "knife" then
-        State.AttackMode = "Knife"
-        Notify("MODE", "Knife | Range: 1.5 | Speed: 0.03s")
-    
-    elseif cmd == "whip" then
-        State.AttackMode = "Whip"
-        Notify("MODE", "Whip | Range: 5.0 | Speed: 0.08s")
-    
-    elseif cmd == "pitch" then
-        State.AttackMode = "Pitch"
-        Notify("MODE", "Pitch | Range: 3.5 | Speed: 0.06s")
-    
-    elseif cmd == "sign" then
-        State.AttackMode = "Sign"
-        Notify("MODE", "Sign | Range: 4.0 | Speed: 0.07s")
-    
-    elseif cmd == "barrage" or cmd == "ora" or cmd == "muda" then
-        if State.CombatDisabled then
-            Notify("ERROR", "Combat disabled")
-        elseif State.BarrageDisabled then
-            Notify("ERROR", "Barrage disabled")
-        elseif not State.IsSummoned then
-            Notify("ERROR", "Stand must be summoned")
-        elseif State.Target and IsPlayerValid(State.Target) then
-            if Combat:Barrage() then
-                Notify("BARRAGE", "Started on " .. State.Target.Name)
-            else
-                Notify("ERROR", "Barrage already active")
-            end
+            DestroyStand()
+            Notify("STAND", "Vanished")
+            print("[STATE] IsSummoned = false")
         else
-            Notify("ERROR", "No valid target")
+            print("[STATE] Not summoned")
         end
     
-    elseif cmd == "stop" or cmd == "unattack" then
-        Combat:StopBarrage()
+    elseif command == "autokill" then
+        print("[CMD] AutoKill triggered")
+        if not State.IsSummoned then
+            Notify("ERROR", "Summon stand first")
+            print("[VALIDATION] Stand not summoned")
+            return
+        end
+        
+        local targetName = args[2]
+        if not targetName then
+            Notify("ERROR", "Usage: .autokill <player>")
+            print("[VALIDATION] No target name provided")
+            return
+        end
+        
+        local target = GetPlayer(targetName)
+        if not target or not IsPlayerValid(target) then
+            Notify("ERROR", "Player not found")
+            print("[VALIDATION] Target player invalid: " .. tostring(targetName))
+            return
+        end
+        
+        State.Target = target
+        State.AutoKill = true
+        Notify("AUTOKILL", "Targeting " .. target.Name)
+        print("[STATE] AutoKill = true, Target = " .. target.Name)
+    
+    elseif command == "stop" or command == "unstop" then
+        print("[CMD] Stop triggered")
         State.AutoKill = false
         State.Target = nil
-        Notify("SYSTEM", "Attack stopped")
+        Notify("SYSTEM", "Stopped")
+        print("[STATE] AutoKill = false, Target = nil")
     
-    elseif cmd == "bring" then
+    elseif command == "bring" then
+        print("[CMD] Bring triggered")
         local targetName = args[2]
-        if targetName then
-            local p = GetPlayer(targetName)
-            if p and IsPlayerValid(p) then
-                local r = SafeGetRoot(p.Character)
-                local myR = SafeGetRoot(LocalPlayer.Character)
-                if r and myR then
-                    r.CFrame = myR.CFrame
-                    Notify("BRING", "Brought " .. p.Name)
-                end
-            else
-                Notify("ERROR", "Player not found")
-            end
-        else
+        if not targetName then
             Notify("ERROR", "Usage: .bring <player>")
+            print("[VALIDATION] No target name provided")
+            return
         end
-    
-    elseif cmd == "autokill" then
-        local targetName = args[2]
-        if targetName then
-            local p = GetPlayer(targetName)
-            if State.CombatDisabled then
-                Notify("ERROR", "Combat disabled")
-            elseif not State.IsSummoned then
-                Notify("ERROR", "Stand must be summoned")
-            elseif p and IsPlayerValid(p) then
-                State.Target = p
-                State.AutoKill = true
-                State.AutoKillStartTime = tick()
-                EffectVerifier:ResetTracking(p)
-                Notify("AUTOKILL", "Targeting: " .. p.Name)
-            else
-                Notify("ERROR", "Player not found")
-            end
-        else
-            Notify("ERROR", "Usage: .autokill <player>")
-        end
-    
-    elseif cmd == "smite" then
-        local targetName = args[2]
-        if targetName then
-            local p = GetPlayer(targetName)
-            if p and IsPlayerValid(p) then
-                local r = SafeGetRoot(p.Character)
-                if r then
-                    local v = nil
-                    pcall(function()
-                        v = Instance.new("BodyVelocity", r)
-                        v.Velocity = Vector3.new(0, 10000, 0)
-                        v.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
-                    end)
-                    if v then
-                        task.wait(0.15)
-                        pcall(function() v:Destroy() end)
-                        Notify("SMITE", "Smited " .. p.Name)
-                    end
-                end
-            else
-                Notify("ERROR", "Player not found")
-            end
-        else
-            Notify("ERROR", "Usage: .smite <player>")
-        end
-    
-    elseif cmd == "tp" or cmd == "to" or cmd == "goto" then
-        local loc = args[2]
-        if loc and Config.Locations[loc] then
-            local myR = SafeGetRoot(LocalPlayer.Character)
-            if myR then
-                pcall(function()
-                    myR.CFrame = CFrame.new(Config.Locations[loc])
-                end)
-                Notify("TELEPORT", "Teleported to " .. loc)
-            end
-        else
-            Notify("ERROR", "Location not found")
-        end
-    
-    else
-        local followModes = {
-            ["back"] = "Back",
-            ["left"] = "Left",
-            ["right"] = "Right",
-            ["under"] = "Under",
-            ["alt"] = "Alt",
-            ["upright"] = "Upright",
-            ["upleft"] = "Upleft",
-            ["upcenter"] = "Upcenter"
-        }
         
-        if followModes[cmd] then
-            State.FollowMode = followModes[cmd]
-            Notify("FOLLOW", "Mode: " .. followModes[cmd])
+        local target = GetPlayer(targetName)
+        if not target or not IsPlayerValid(target) then
+            Notify("ERROR", "Player not found")
+            print("[VALIDATION] Target player invalid: " .. tostring(targetName))
+            return
         end
+        
+        local targetRoot = SafeGetRoot(target.Character)
+        local myRoot = SafeGetRoot(LocalPlayer.Character)
+        
+        if targetRoot and myRoot then
+            pcall(function()
+                targetRoot.CFrame = myRoot.CFrame
+            end)
+            Notify("BRING", "Brought " .. target.Name)
+            print("[ACTION] Brought " .. target.Name)
+        else
+            print("[VALIDATION] Root parts invalid")
+        end
+    
+    elseif command == "to" or command == "tp" or command == "goto" then
+        print("[CMD] Teleport triggered")
+        local locName = args[2]
+        if not locName or not Config.Locations[locName] then
+            Notify("ERROR", "Location not found")
+            print("[VALIDATION] Location invalid: " .. tostring(locName))
+            return
+        end
+        
+        local myRoot = SafeGetRoot(LocalPlayer.Character)
+        if myRoot then
+            pcall(function()
+                myRoot.CFrame = CFrame.new(Config.Locations[locName])
+            end)
+            Notify("TP", "Teleported to " .. locName)
+            print("[ACTION] Teleported to " .. locName)
+        else
+            print("[VALIDATION] Player root invalid")
+        end
+    else
+        print("[CMD] Unknown command: " .. command)
     end
 end
 
-RunService.Heartbeat:Connect(function()
+local function SetupChatHook()
+    if State.ChatHooked then return end
+    State.ChatHooked = true
+    
+    print("[CHAT] Setting up chat hook...")
+    
+    local textChatServiceHooked = false
+    local chattedHooked = false
+    
     pcall(function()
-        ServerAssist:ProcessQueue()
-    end)
-end)
-
-RunService.Heartbeat:Connect(function()
-    pcall(function()
-        local now = tick()
-        
-        if now - EffectVerifier.LastEffectCheckTime >= EffectVerifier.EffectCheckInterval then
-            EffectVerifier.LastEffectCheckTime = now
-            
-            if State.Target and IsPlayerValid(State.Target) and (State.AutoKill or State.BarrageActive) then
-                local hasEffect, wasBarrage = EffectVerifier:CheckAndConsumeOldestEffect(State.Target)
-                EffectVerifier:CleanupExpiredAttempts(State.Target)
-                
-                if hasEffect then
-                    State.NoEffectCounter = 0
-                    if wasBarrage then
-                        State.BarrageConfirmedEffects = State.BarrageConfirmedEffects + 1
-                    else
-                        State.SingleAttackConfirmedEffects = State.SingleAttackConfirmedEffects + 1
-                        State.HasConfirmedSingleAttack = true
-                    end
-                else
-                    State.NoEffectCounter = State.NoEffectCounter + 1
+        local TextChatService = game:GetService("TextChatService")
+        if TextChatService then
+            print("[CHAT] TextChatService found - attempting hook")
+            TextChatService.OnIncomingMessage:Connect(function(message)
+                if message and message.TextSource and message.TextSource.UserId == LocalPlayer.UserId then
+                    print("[CHAT] TextChatService message received: " .. tostring(message.Text))
+                    HandleCommand(message.Text)
                 end
-                
-                if State.NoEffectCounter >= Config.NoEffectThreshold and not State.CombatDisabled then
-                    if ServerAssist.AdaptiveMode then
-                        print("[COMBAT] Adaptive mode: slowing down")
-                    else
-                        print("[COMBAT] Entering adaptive mode")
-                        ServerAssist.AdaptiveMode = true
-                        ServerAssist.AdaptiveModeStartTime = tick()
-                    end
-                end
-            end
+            end)
+            textChatServiceHooked = true
+            print("[CHAT] TextChatService hooked successfully")
         end
     end)
-end)
-
-local lastResolverTime = tick()
-
-if State.ResolverConnection then
-    pcall(function() State.ResolverConnection:Disconnect() end)
+    
+    pcall(function()
+        if LocalPlayer then
+            print("[CHAT] LocalPlayer.Chatted found - attempting hook")
+            LocalPlayer.Chatted:Connect(function(msg)
+                print("[CHAT] LocalPlayer.Chatted message received: " .. tostring(msg))
+                HandleCommand(msg)
+            end)
+            chattedHooked = true
+            print("[CHAT] LocalPlayer.Chatted hooked successfully")
+        end
+    end)
+    
+    if textChatServiceHooked or chattedHooked then
+        print("[CHAT] Chat hook established")
+    else
+        print("[CHAT] WARNING: No chat hook could be established")
+    end
 end
 
-State.ResolverConnection = RunService.Heartbeat:Connect(function()
-    pcall(function()
-        local currentTime = tick()
-        local deltaTime = math.min(currentTime - lastResolverTime, 0.1)
-        lastResolverTime = currentTime
+local function SetupAutoKillLoop()
+    if State.AutoKillConnection then
+        pcall(function() State.AutoKillConnection:Disconnect() end)
+    end
+    
+    State.AutoKillConnection = RunService.Heartbeat:Connect(function()
+        if not State.AutoKill or not State.IsSummoned or not State.Target then return end
         
-        if State.AutoKill and State.IsSummoned then
-            local now = tick()
-            local engagementTime = now - State.AutoKillStartTime
-            
-            if engagementTime > Config.AutoKillMaxTimeout then
-                State.AutoKill = false
-                State.Target = nil
-                Notify("AUTOKILL", "Timeout")
-                return
-            end
-            
-            if not IsPlayerValid(State.Target) then
-                State.AutoKill = false
-                State.Target = nil
-                if now - State.LastTargetLossNotify > 2 then
-                    Notify("AUTOKILL", "Target lost")
-                    State.LastTargetLossNotify = now
-                end
-                return
-            end
-            
-            local tRoot = SafeGetRoot(State.Target.Character)
-            local myRoot = SafeGetRoot(LocalPlayer.Character)
-            
-            if not tRoot or not myRoot then
-                State.AutoKill = false
-                State.Target = nil
-                return
-            end
-            
-            local distance = (tRoot.Position - myRoot.Position).Magnitude
-            
-            if distance > Config.AutoKillMaxDistance then
-                State.AutoKill = false
-                State.Target = nil
-                Notify("AUTOKILL", "Too far")
-                return
-            end
-            
-            local config = Combat:GetAttackConfig()
-            if not config then return end
-            
-            local validatedRange = Combat:ValidateRange(config.range)
-            
-            local targetPos = tRoot.CFrame * CFrame.new(0, 0, validatedRange)
-            
-            if State.Resolver and tRoot.AssemblyLinearVelocity.Magnitude > 2 then
-                local velocity = tRoot.AssemblyLinearVelocity
-                
-                local successRate = ServerAssist.SuccessCount / math.max(1, ServerAssist.SuccessCount + ServerAssist.FailureCount)
-                local predictionFactor = math.min(deltaTime * (6 + successRate * 4), 0.25)
-                
-                local predictedOffset = velocity * predictionFactor
-                
-                local predictionMagnitude = predictedOffset.Magnitude
-                if predictionMagnitude > 4 then
-                    predictedOffset = predictedOffset.Unit * 4
-                end
-                
-                targetPos = targetPos + predictedOffset
-            end
-            
-            local distanceToTarget = (myRoot.Position - tRoot.Position).Magnitude
-            if distanceToTarget < 100 then
-                pcall(function()
-                    if myRoot and myRoot.Parent then
-                        myRoot.CFrame = targetPos
-                    end
-                end)
-            end
-            
-            Combat:Attack(State.Target, false)
-            
-            if IsPlayerValid(State.Target) and ServerAssist.SuccessCount > 3 then
-                RemoteManager:AttemptStomp(State.Target)
-            end
-        elseif State.AutoKill and not State.IsSummoned then
+        if not IsPlayerValid(State.Target) then
             State.AutoKill = false
             State.Target = nil
-            ServerAssist:Reset()
+            Notify("AUTOKILL", "Target lost")
+            print("[AUTOKILL] Target lost")
+            return
+        end
+        
+        local targetRoot = SafeGetRoot(State.Target.Character)
+        local myRoot = SafeGetRoot(LocalPlayer.Character)
+        
+        if not targetRoot or not myRoot then
+            State.AutoKill = false
+            State.Target = nil
+            print("[AUTOKILL] Root parts invalid")
+            return
+        end
+        
+        local distance = (targetRoot.Position - myRoot.Position).Magnitude
+        
+        if distance > 500 then
+            State.AutoKill = false
+            State.Target = nil
+            Notify("AUTOKILL", "Too far")
+            print("[AUTOKILL] Target too far: " .. tostring(distance))
+            return
+        end
+        
+        if distance < 100 then
+            pcall(function()
+                if myRoot and myRoot.Parent then
+                    myRoot.CFrame = targetRoot.CFrame + Vector3.new(0, 0, 3)
+                end
+            end)
+        end
+        
+        Attack(State.Target)
+    end)
+    
+    print("[AUTOKILL] Loop established")
+end
+
+local function SetupCharacterRespawn()
+    pcall(function()
+        if LocalPlayer then
+            LocalPlayer.CharacterAdded:Connect(function()
+                print("[CHARACTER] Respawn detected")
+                task.wait(1)
+                State.AutoKill = false
+                State.Target = nil
+                if State.IsSummoned then
+                    print("[CHARACTER] Recreating stand after respawn")
+                    CreateStand()
+                end
+            end)
+            print("[CHARACTER] Respawn hook established")
         end
     end)
-end)
+end
 
-State.IsSummoned = false
-State.CombatDisabled = false
-State.BarrageDisabled = false
-State.ConsecutiveAttackFailures = 0
-State.NoEffectCounter = 0
-State.SingleAttackConfirmedEffects = 0
-State.BarrageConfirmedEffects = 0
-State.SingleAttackValidationStartTime = tick()
-State.Target = nil
-State.AutoKill = false
-State.BarrageActive = false
-State.HasConfirmedSingleAttack = false
-EffectVerifier:ResetTracking()
-
-print("[SYSTEM] Ready")
+print("[BOOT] Initializing Da Hood Stand Script...")
 
 task.spawn(function()
+    print("[BOOT] Starting async initialization...")
+    
     RemoteManager:Scan()
+    
+    SetupChatHook()
+    
+    SetupAutoKillLoop()
+    
+    SetupCharacterRespawn()
+    
+    print("[BOOT] Async initialization complete")
 end)
 
-if LocalPlayer then
-    pcall(function()
-        LocalPlayer.CharacterAdded:Connect(function()
-            task.wait(1.5)
-            Combat:StopBarrage()
-            State.AutoKill = false
-            State.Target = nil
-            State.ConsecutiveAttackFailures = 0
-            State.NoEffectCounter = 0
-            EffectVerifier:ResetTracking()
-            ServerAssist:Reset()
-            if State.IsSummoned then
-                StandBuilder:Create()
-            end
-        end)
-    end)
-end
-
-pcall(function()
-    game:GetService("Players").PlayerRemoving:Connect(function(player)
-        if player == State.Target then
-            State.AutoKill = false
-            State.Target = nil
-            Combat:StopBarrage()
-            EffectVerifier:ResetTracking(player)
-            ServerAssist:Reset()
-            Notify("AUTOKILL", "Target left")
-        end
-    end)
-end)
-
-local function HandleChat(msg)
-    if msg and msg ~= "" then
-        Router:Route(msg)
-    end
-end
-
-pcall(function()
-    local TextChatService = game:GetService("TextChatService")
-    if TextChatService then
-        TextChatService.OnIncomingMessage:Connect(function(message)
-            if message.TextSource and message.TextSource.UserId == LocalPlayer.UserId then
-                HandleChat(message.Text)
-            end
-        end)
-    end
-end)
-
-pcall(function()
-    if LocalPlayer then
-        LocalPlayer.Chatted:Connect(function(msg)
-            HandleChat(msg)
-        end)
-    end
-end)
-]]
-
-local function ExecuteViaLoadstring()
-    print("[DUAL MODE] Executing via loadstring...")
-    local success, err = pcall(function()
-        local chunk = loadstring(MAIN_SCRIPT_SOURCE)
-        if chunk then
-            chunk()
-        end
-    end)
-    
-    if not success then
-        print("[ERROR] loadstring execution failed: " .. tostring(err))
-        return false
-    end
-    
-    return true
-end
-
-local function ExecuteViaModuleScript()
-    print("[DUAL MODE] Executing via ModuleScript fallback...")
-    
-    local success, result = pcall(function()
-        local tempModule = Instance.new("ModuleScript")
-        tempModule.Source = MAIN_SCRIPT_SOURCE
-        tempModule.Parent = game:GetService("ServerScriptService") or workspace
-        
-        local execSuccess, execErr = pcall(function()
-            require(tempModule)
-        end)
-        
-        task.wait(0.1)
-        pcall(function()
-            tempModule:Destroy()
-        end)
-        
-        if not execSuccess then
-            print("[ERROR] ModuleScript execution failed: " .. tostring(execErr))
-            return false
-        end
-        
-        return true
-    end)
-    
-    if not success then
-        print("[ERROR] ModuleScript fallback failed: " .. tostring(result))
-        return false
-    end
-    
-    return result
-end
-
-if LOADSTRING_SUPPORTED then
-    if not ExecuteViaLoadstring() then
-        print("[FALLBACK] loadstring failed, attempting ModuleScript...")
-        ExecuteViaModuleScript()
-    end
-else
-    ExecuteViaModuleScript()
-end
-
-print("[BOOT] Ready")
+print("[STAND] Ready - Type '.s' to summon")
+Notify("STAND", "Loaded - Type '.s' to summon")
