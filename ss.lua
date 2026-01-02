@@ -1357,13 +1357,27 @@ pcall(function()
     end)
 end)
 
+local function HandleChat(msg)
+    if msg and msg ~= "" then
+        Router:Route(msg)
+    end
+end
+
+pcall(function()
+    local TextChatService = game:GetService("TextChatService")
+    if TextChatService then
+        TextChatService.OnIncomingMessage:Connect(function(message)
+            if message.TextSource and message.TextSource.UserId == LocalPlayer.UserId then
+                HandleChat(message.Text)
+            end
+        end)
+    end
+end)
+
 pcall(function()
     if LocalPlayer then
         LocalPlayer.Chatted:Connect(function(msg)
-            if msg and msg ~= "" then
-                print("[CHAT] " .. msg)
-                Router:Route(msg)
-            end
+            HandleChat(msg)
         end)
     end
 end)
