@@ -1,5 +1,5 @@
 --[[
-    RESCUED STAND SYSTEM (V15.0 DA HOOD HARDENED + RUNTIME SAFE)
+    RESCUED STAND SYSTEM (V15.1 DA HOOD HARDENED + RUNTIME SAFE)
     
     CRITICAL FIXES:
     - Owner verification BEFORE any execution
@@ -309,7 +309,6 @@ local function ChatUIReset()
             return
         end
         
-        -- Find chat frame (try multiple names)
         local chatFrame = chat:FindFirstChild("Frame") 
             or chat:FindFirstChild("ChatWindow")
             or chat:FindFirstChild("MainFrame")
@@ -319,7 +318,6 @@ local function ChatUIReset()
             return
         end
         
-        -- Restore to default bottom-left position
         pcall(function()
             chatFrame.AnchorPoint = Vector2.new(0, 1)
             chatFrame.Position = UDim2.new(0, 10, 1, -10)
@@ -327,19 +325,16 @@ local function ChatUIReset()
             chatFrame.Visible = true
         end)
         
-        -- Force chat enabled
         pcall(function()
             chat.Enabled = true
         end)
         
-        -- Reset offset if exists
         pcall(function()
             if chatFrame:FindFirstChild("Offset") then
                 chatFrame.Offset = UDim2.new(0, 0, 0, 0)
             end
         end)
         
-        -- Make all descendants visible
         pcall(function()
             for _, child in pairs(chat:GetDescendants()) do
                 if child:IsA("GuiObject") then
@@ -465,7 +460,6 @@ function RemoteManager:Scan()
     if self.RemoteFound then return end
     
     pcall(function()
-        -- First, try to find MainEvent directly (Da Hood standard)
         local mainEvent = ReplicatedStorage:FindFirstChild("MainEvent")
         if mainEvent and (mainEvent:IsA("RemoteEvent") or mainEvent:IsA("RemoteFunction")) then
             self.Primary = mainEvent
@@ -474,7 +468,6 @@ function RemoteManager:Scan()
             return
         end
         
-        -- Fallback: scan for combat-related remotes
         local combatKeywords = {"attack", "damage", "hit", "punch", "knife", "stomp", "carry", "grab", "knock", "down", "combat", "action", "input", "fire", "event"}
         
         local function scanRecursive(parent, depth)
@@ -512,12 +505,10 @@ local function DetermineActionToken(targetChar)
     local hum = GetTargetHumanoid(targetChar:FindFirstChild("Humanoid") and targetChar or nil)
     if not hum then return "Punch" end
     
-    -- If target health is very low, use Heavy attack
     if hum.Health <= 10 then
         return "Heavy"
     end
     
-    -- Default to Punch
     return "Punch"
 end
 
@@ -547,10 +538,8 @@ function RemoteManager:Fire(targetChar)
             
             if not myRoot or not targetRoot then return end
             
-            -- Determine action token based on target state
             local actionToken = DetermineActionToken(targetChar)
             
-            -- Fire with Da Hood combat payload (correct schema)
             self.Primary:FireServer(
                 "Combat",
                 actionToken,
@@ -582,13 +571,11 @@ function RemoteManager:AttemptStomp(targetChar)
     local hum = GetTargetHumanoid(targetChar)
     if not hum then return false end
     
-    -- Only stomp if target health is critically low
     if hum.Health > 5 then return false end
     
     local targetRoot = SafeGetRoot(targetChar)
     if not targetRoot then return false end
     
-    -- Check if target is grounded (not moving much)
     local velocity = targetRoot.AssemblyLinearVelocity.Magnitude
     if velocity > 10 then return false end
     
@@ -596,7 +583,6 @@ function RemoteManager:AttemptStomp(targetChar)
     
     local success = pcall(function()
         if self.Primary and typeof(self.Primary.FireServer) == "function" then
-            -- Fire stomp action
             self.Primary:FireServer(
                 "Stomp",
                 targetChar
@@ -1168,7 +1154,6 @@ function ChatNormalizer:Hook()
         pcall(function() self.Connections.Chatted:Disconnect() end)
     end
     
-    -- PRIMARY: LocalPlayer.Chatted (standard Roblox)
     pcall(function()
         if LocalPlayer then
             self.Connections.Chatted = LocalPlayer.Chatted:Connect(function(msg)
@@ -1177,20 +1162,17 @@ function ChatNormalizer:Hook()
         end
     end)
     
-    -- FALLBACK: Da Hood chat framework hook (for hidden/replaced chat)
     pcall(function()
         local playerGui = LocalPlayer:FindFirstChild("PlayerGui")
         if playerGui then
             local chat = playerGui:FindFirstChild("Chat") or playerGui:FindFirstChild("ExperienceChat")
             if chat then
-                -- Hook into chat's internal message processing
                 local chatFrame = chat:FindFirstChild("Frame") 
                     or chat:FindFirstChild("ChatWindow")
                     or chat:FindFirstChild("MainFrame")
                     or chat:FindFirstChild("ChatBox")
                 
                 if chatFrame then
-                    -- Monitor for text input changes (Da Hood compatibility)
                     local textBox = nil
                     pcall(function()
                         for _, child in pairs(chat:GetDescendants()) do
@@ -1333,7 +1315,6 @@ State.ResolverConnection = RunService.Heartbeat:Connect(function()
             
             Combat:Attack(State.Target, false)
             
-            -- Attempt stomp if conditions are met
             RemoteManager:AttemptStomp(State.Target.Character)
         elseif State.AutoKill and not State.IsSummoned then
             State.AutoKill = false
