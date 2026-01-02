@@ -3,7 +3,7 @@ if getgenv()[SCRIPT_ID] then return end
 getgenv()[SCRIPT_ID] = true
 
 local DA_HOOD_PLACE_ID = 2627663541
-if game.PlaceId ~= DA_HOOD_PLACE_ID then
+if game.PlaceId ~= 2788229376 then
     print("[STAND] Not in Da Hood - aborting")
     return
 end
