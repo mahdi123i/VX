@@ -52,26 +52,6 @@ if not VerifyOwnerInServer() then
 end
 
 --// SAFE EXECUTION GATE (RUNS FIRST - PREVENTS PREMATURE EXECUTION)
---[[
-    SAFE_BOOT(): Ensures script runs ONLY when Da Hood is fully initialized
-    
-    WHY THIS EXISTS:
-    - Script was executing before PlayerGui.Framework existed
-    - leaderstats WaitForChild was infinite-yielding
-    - Modules were nil when accessed
-    - Chat UI wasn't ready for reset
-    - Character may not exist on script load
-    
-    WHAT IT DOES:
-    1. Waits for LocalPlayer to exist (with 5s timeout)
-    2. Waits for LocalPlayer.Character (with 10s timeout)
-    3. Waits for PlayerGui (with 5s timeout)
-    4. Waits for Da Hood Framework OR times out gracefully
-    5. Returns true only if safe to proceed
-    6. Logs all failures clearly
-    7. Never blocks indefinitely
-]]
-
 local function SAFE_BOOT()
     local startTime = tick()
     local maxWaitTime = 20
@@ -131,92 +111,7 @@ if not SAFE_BOOT() then
     return
 end
 
---// EXTERNAL OPERATIONAL BOOTSTRAP (LOGICALLY ISOLATED)
---[[
-    SAFE BOOTSTRAP LOADER - PREVENTS "attempt to call a nil value" CRASH
-    
-    WHY THIS EXISTS:
-    - HttpGet can silently fail in some executors (Delta, Fluxus, KRNL)
-    - loadstring() may return nil instead of a function
-    - pcall alone is NOT sufficient - nil functions still crash when called
-    - Script must verify EVERY step before execution
-    
-    WHAT IT DOES:
-    1. Verify HttpGet returns a STRING (not nil, not error)
-    2. Verify loadstring returns a FUNCTION (not nil, not error)
-    3. NEVER call a function unless typeof(fn) == "function"
-    4. Log each failure clearly (once only, no spam)
-    5. Continue gracefully if external loader fails
-    
-    CRITICAL PATTERN (WRONG):
-    local f = loadstring(game:HttpGet(url))
-    f()  -- CRASH if f is nil!
-    
-    CORRECT PATTERN (FIXED):
-    local src = game:HttpGet(url)
-    if type(src) ~= "string" then return end
-    local fn = loadstring(src)
-    if type(fn) ~= "function" then return end
-    pcall(fn)  -- Safe to call now
-]]
-
-local BootstrapLoaderLog = {}
-
-local function SafeLoadExternal(url)
-    --[[
-        SafeLoadExternal: Safely load and execute external code
-        
-        Returns: (success: bool, error: string)
-        - success = true: External code loaded and executed
-        - success = false: External code failed or unavailable
-    ]]
-    
-    if not url or url == "" then
-        return false, "No URL provided"
-    end
-    
-    -- STEP 1: Verify HttpGet returns a STRING
-    local sourceCode = nil
-    local httpGetError = nil
-    
-    local httpSuccess = pcall(function()
-        sourceCode = game:HttpGet(url)
-    end)
-    
-    if not httpSuccess then
-        return false, "HttpGet call failed"
-    end
-    
-    if sourceCode == nil or sourceCode == "" then
-        return false, "HttpGet returned empty"
-    end
-    
-    if type(sourceCode) ~= "string" then
-        return false, "HttpGet returned non-string"
-    end
-    
-    -- STEP 2: Verify loadstring returns a FUNCTION
-    local loaderFunc = nil
-    local loadSuccess = pcall(function()
-        loaderFunc = loadstring(sourceCode)
-    end)
-    
-    if not loadSuccess or loaderFunc == nil or type(loaderFunc) ~= "function" then
-        return false, "loadstring failed or returned invalid"
-    end
-    
-    -- STEP 3: Execute the function ONLY if it's verified to be a function
-    local execSuccess = pcall(function()
-        loaderFunc()
-    end)
-    
-    if not execSuccess then
-        return false, "External function execution failed"
-    end
-    
-    return true, nil
-end
-
+--// EXTERNAL OPERATIONAL BOOTSTRAP
 local function InitializeExternalBootstrap()
     if getgenv()._BOOTSTRAP_LOADED then
         return false
@@ -280,7 +175,7 @@ local function InitializeExternalBootstrap()
     return true
 end
 
---// CHAT UI RESET (RUNS IMMEDIATELY ON EXECUTION)
+--// CHAT UI RESET
 local function ChatUIReset()
     local success = false
     local errorMsg = nil
@@ -295,21 +190,17 @@ local function ChatUIReset()
         end
         
         local playerGui = LocalPlayer.PlayerGui
-        
-        -- Try to find Chat (standard Roblox chat)
         local chat = playerGui:FindFirstChild("Chat")
         
-        -- Fallback: Try ExperienceChat (newer Roblox chat system)
         if not chat then
             chat = playerGui:FindFirstChild("ExperienceChat")
         end
         
         if not chat then
-            errorMsg = "Chat GUI not found in PlayerGui (tried Chat and ExperienceChat)"
+            errorMsg = "Chat GUI not found"
             return
         end
         
-        -- Locate main chat frame (try multiple possible names)
         local chatFrame = chat:FindFirstChild("Frame")
         if not chatFrame then
             chatFrame = chat:FindFirstChild("ChatWindow")
@@ -322,11 +213,10 @@ local function ChatUIReset()
         end
         
         if not chatFrame then
-            errorMsg = "Chat Frame not found in chat GUI"
+            errorMsg = "Chat Frame not found"
             return
         end
         
-        -- Reset to DEFAULT position (BOTTOM-LEFT, visible)
         pcall(function()
             chatFrame.AnchorPoint = Vector2.new(0, 1)
             chatFrame.Position = UDim2.new(0, 10, 1, -10)
@@ -334,19 +224,16 @@ local function ChatUIReset()
             chatFrame.Visible = true
         end)
         
-        -- Ensure chat is enabled
         pcall(function()
             chat.Enabled = true
         end)
         
-        -- Clear any offset caused by Da Hood
         pcall(function()
             if chatFrame:FindFirstChild("Offset") then
                 chatFrame.Offset = UDim2.new(0, 0, 0, 0)
             end
         end)
         
-        -- Make chat scrollable and show history
         pcall(function()
             local scrollingFrame = chat:FindFirstChild("ScrollingFrame")
             if scrollingFrame then
@@ -355,7 +242,6 @@ local function ChatUIReset()
             end
         end)
         
-        -- Restore chat input visibility
         pcall(function()
             local textBox = chat:FindFirstChild("TextBox")
             if textBox then
@@ -363,7 +249,6 @@ local function ChatUIReset()
             end
         end)
         
-        -- Reset all descendants to visible (show chat history)
         pcall(function()
             for _, child in pairs(chat:GetDescendants()) do
                 if child:IsA("GuiObject") then
@@ -372,7 +257,6 @@ local function ChatUIReset()
             end
         end)
         
-        -- Force chat to show all messages
         pcall(function()
             if chat:FindFirstChild("ChatChannelParentFrameBackground") then
                 chat.ChatChannelParentFrameBackground.Visible = true
@@ -555,31 +439,13 @@ local function GetTargetHumanoid(player)
     return hum
 end
 
---// NIL-SAFE FUNCTION CALL WRAPPER
---[[
-    SafeCall: Universal nil-safe function wrapper
-    
-    WHY THIS EXISTS:
-    - Prevents "attempt to call a nil value" crashes
-    - Validates function exists before calling
-    - Logs errors once (no spam)
-    - Delta executor compatible
-    
-    USAGE:
-    SafeCall(myFunction, arg1, arg2)
-    
-    Returns: result or nil if function doesn't exist
-]]
-
 local SafeCallLog = {}
 
 local function SafeCall(fn, ...)
-    -- GUARD 1: Check if function exists
     if not fn then
         return nil
     end
     
-    -- GUARD 2: Check if it's actually a function (prevents nil calls)
     if typeof(fn) ~= "function" then
         local fnName = tostring(fn)
         if not SafeCallLog[fnName] then
@@ -589,7 +455,6 @@ local function SafeCall(fn, ...)
         return nil
     end
     
-    -- GUARD 3: Execute safely with pcall
     local success, result = pcall(fn, ...)
     if not success then
         warn("[SAFE_CALL] Function call failed: " .. tostring(result))
@@ -598,21 +463,6 @@ local function SafeCall(fn, ...)
     
     return result
 end
-
---// ANIMATION ID VALIDATOR
---[[
-    ValidateAnimationId: Guard against nil and 0 animation IDs
-    
-    WHY THIS EXISTS:
-    - Animation IDs may be 0 or nil (invalid)
-    - LoadAnimation crashes on invalid IDs
-    - Must skip loading for invalid IDs
-    
-    USAGE:
-    if ValidateAnimationId(animId) then
-        -- Safe to load animation
-    end
-]]
 
 local function ValidateAnimationId(animationId)
     if animationId == nil then
@@ -720,7 +570,7 @@ function EffectVerifier:ResetTracking(player)
     end
 end
 
---// REMOTE ANALYSIS & DISCOVERY SYSTEM (EMPIRICAL LOGGING)
+--// REMOTE ANALYSIS & DISCOVERY SYSTEM
 local RemoteAnalyzer = {
     DiscoveredRemotes = {},
     HookedRemotes = {},
@@ -911,7 +761,7 @@ function RemoteAnalyzer:PrintDiscoveryReport()
     return report
 end
 
---// REMOTE MANAGER (VERIFIED EXECUTION WITH FAILURE TRACKING)
+--// REMOTE MANAGER
 local RemoteManager = {
     Primary = nil,
     RemoteFound = false,
@@ -977,7 +827,7 @@ function RemoteManager:CheckFailureThreshold()
     return false
 end
 
---// STAND BUILDER (VERIFIED PHYSICS WITH OFFSET VALIDATION)
+--// STAND BUILDER
 local StandBuilder = {}
 
 function StandBuilder:ValidateFollowOffset(offset)
@@ -1115,7 +965,7 @@ function StandBuilder:SetupFollowLoop()
     end)
 end
 
---// COMBAT CONTROLLER (FIFO QUEUE EFFECT VERIFICATION)
+--// COMBAT CONTROLLER
 local Combat = {}
 
 function Combat:GetAttackConfig()
@@ -1253,7 +1103,7 @@ function Combat:StopBarrage()
     end
 end
 
---// OWNER CONTROLLER (LOGICALLY ISOLATED)
+--// OWNER CONTROLLER
 local OwnerController = {
     OwnerUserId = nil,
     OwnerName = nil,
@@ -1303,7 +1153,7 @@ function OwnerController:IsOwnerByName(name)
     return result
 end
 
---// CHAT NORMALIZER (LOGICALLY ISOLATED)
+--// CHAT NORMALIZER
 local ChatNormalizer = {
     LastChatTime = 0,
     ChatCooldown = 0.05,
@@ -1313,17 +1163,14 @@ local ChatNormalizer = {
 function ChatNormalizer:Normalize(text)
     if not text or text == "" then return "" end
     
-    -- Trim whitespace
     text = text:match("^%s*(.-)%s*$") or text
     
-    -- Preserve prefix if present
     local prefix = ""
     if text:sub(1, 1) == "." or text:sub(1, 1) == "/" then
         prefix = text:sub(1, 1)
         text = text:sub(2)
     end
     
-    -- Lowercase
     text = text:lower()
     
     return prefix .. text
@@ -1338,13 +1185,10 @@ function ChatNormalizer:ProcessChat(msg)
     end
     self.LastChatTime = now
     
-    -- Verify sender is owner
     if not OwnerController:IsOwner(LocalPlayer) then
-        -- Silently ignore non-owner chat
         return
     end
     
-    -- Normalize and forward to Router
     local normalized = self:Normalize(msg)
     if normalized and normalized ~= "" then
         print("[CHAT] Owner command: " .. normalized)
@@ -1368,7 +1212,7 @@ function ChatNormalizer:Hook()
     print("[CHAT NORMALIZER] ✓ Chat hook established")
 end
 
---// COMMAND ROUTER (VERIFIED COMMANDS ONLY)
+--// COMMAND ROUTER
 local Router = {}
 
 function Router:Route(msg)
@@ -1390,7 +1234,6 @@ function Router:Route(msg)
     end)
     if not cmd or cmd == "" then return end
 
-    -- SUMMON/VANISH
     if cmd == "s" or cmd == "summon!" or cmd == "/e q" then
         if not State.IsSummoned then
             State.IsSummoned = true
@@ -1414,7 +1257,6 @@ function Router:Route(msg)
             Notify("SYSTEM", "Stand Vanished")
         end
     
-    -- ATTACK MODES (REAL: Changes positioning range and attack speed)
     elseif cmd == "combat!" then
         State.AttackMode = "Combat"
         Notify("MODE", "Combat | Range: 2.8 | Speed: 0.05s")
@@ -1431,7 +1273,6 @@ function Router:Route(msg)
         State.AttackMode = "Sign"
         Notify("MODE", "Sign | Range: 4.0 | Speed: 0.07s")
     
-    -- BARRAGE COMMANDS (REAL: Continuous attacks with mode-based speed)
     elseif cmd == "barrage!" or cmd == "ora!" or cmd == "muda!" then
         if State.CombatDisabled then
             Notify("ERROR", "Combat disabled: Remote not responding")
@@ -1455,14 +1296,12 @@ function Router:Route(msg)
             Notify("ERROR", "No valid target for barrage")
         end
     
-    -- STOP BARRAGE / UNATTACK
     elseif cmd == "unattack!" or cmd == "stop!" then
         Combat:StopBarrage()
         State.AutoKill = false
         State.Target = nil
         Notify("SYSTEM", "Attack stopped")
     
-    -- DOT COMMANDS
     elseif cmd:sub(1, 1) == Config.Prefix then
         local action = ""
         pcall(function()
@@ -1539,7 +1378,6 @@ function Router:Route(msg)
         end
     end
     
-    -- FOLLOW POSITIONS
     local followModes = {
         ["back!"] = "Back",
         ["left!"] = "Left",
@@ -1556,7 +1394,6 @@ function Router:Route(msg)
         Notify("FOLLOW", "Mode: " .. followModes[cmd])
     end
     
-    -- REMOTE ANALYSIS COMMANDS
     if cmd == "remotes" or cmd == "listremotes" then
         pcall(function()
             local report = RemoteAnalyzer:PrintDiscoveryReport()
@@ -1652,7 +1489,7 @@ RunService.Heartbeat:Connect(function()
     end)
 end)
 
---// MAIN RESOLVER LOOP (VERIFIED DELTATIME PREDICTION WITH SAFETY)
+--// MAIN RESOLVER LOOP
 local lastResolverTime = tick()
 
 if State.ResolverConnection then
@@ -1665,7 +1502,6 @@ State.ResolverConnection = RunService.Heartbeat:Connect(function()
         local deltaTime = math.min(currentTime - lastResolverTime, 0.1)
         lastResolverTime = currentTime
         
-        -- AUTOKILL WITH RESPAWN/DESPAWN DETECTION, TIMEOUT, AND DISTANCE VALIDATION
         if State.AutoKill and State.IsSummoned then
             local now = tick()
             local engagementTime = now - State.AutoKillStartTime
@@ -1711,7 +1547,6 @@ State.ResolverConnection = RunService.Heartbeat:Connect(function()
             local validatedRange = Combat:ValidateRange(config.range)
             local targetPos = tRoot.CFrame * CFrame.new(0, 0, validatedRange)
             
-            -- RESOLVER: Real deltaTime-based prediction with clamped velocity
             if State.Resolver and tRoot.AssemblyLinearVelocity.Magnitude > 3 then
                 local velocity = tRoot.AssemblyLinearVelocity
                 local predictionFactor = math.min(deltaTime * 16, 0.5)
@@ -1730,17 +1565,13 @@ State.ResolverConnection = RunService.Heartbeat:Connect(function()
     end)
 end)
 
---// INITIALIZATION SEQUENCE (SAFE BOOT ALREADY PASSED)
--- 1. Chat UI Reset (MUST run immediately on execution)
+--// INITIALIZATION SEQUENCE
 ChatUIReset()
 
--- 2. Initialize external operational bootstrap (runs exactly once)
 InitializeExternalBootstrap()
 
--- 3. Initialize Owner Controller
 OwnerController:Initialize()
 
--- 4. Reset Stand state completely (SAFE MODE 1)
 State.IsSummoned = false
 State.CombatDisabled = false
 State.BarrageDisabled = false
@@ -1755,7 +1586,6 @@ State.BarrageActive = false
 EffectVerifier:ResetTracking()
 print("[SYSTEM] ✓ Stand state reset - SAFE MODE 1 active")
 
--- 5. Teleport to safe1 location
 pcall(function()
     if LocalPlayer and LocalPlayer.Character then
         local myRoot = SafeGetRoot(LocalPlayer.Character)
@@ -1766,10 +1596,8 @@ pcall(function()
     end
 end)
 
--- 6. Scan for remotes after bootstrap is initialized
 RemoteManager:Scan()
 
--- 7. Hook Chat Normalizer (captures and filters owner commands only)
 ChatNormalizer:Hook()
 
 --// CHARACTER RESPAWN HANDLER
