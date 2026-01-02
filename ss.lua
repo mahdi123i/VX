@@ -17,22 +17,21 @@
 --// PHASE 0: OWNER VERIFICATION (MUST RUN FIRST - ABORT IF OWNER NOT PRESENT)
 --// ============================================================================
 
+local OWNER_NAME = nil
+
 local function VerifyOwnerInServer()
-    local ownerName = nil
     local ownerFound = false
     
-    -- Get owner from getgenv().Owner (ONLY source of truth)
+    -- Get owner from getgenv().Owner (set by executor)
     pcall(function()
         if getgenv().Owner and type(getgenv().Owner) == "string" then
-            ownerName = getgenv().Owner
+            OWNER_NAME = getgenv().Owner
         end
     end)
     
-    -- If no owner defined in getgenv, abort
-    if not ownerName or ownerName == "" then
-        print("[SYSTEM] Owner not in server - script idle")
-        warn("[SYSTEM] Owner not in server - script idle")
-        return false
+    -- Fallback if not set
+    if not OWNER_NAME or OWNER_NAME == "" then
+        OWNER_NAME = "hugwag"
     end
     
     -- Verify owner is in server (name-based only)
@@ -42,7 +41,7 @@ local function VerifyOwnerInServer()
         
         for _, player in pairs(Players:GetPlayers()) do
             if player and player.Name then
-                if player.Name:lower() == ownerName:lower() then
+                if player.Name:lower() == OWNER_NAME:lower() then
                     ownerFound = true
                     break
                 end
@@ -51,12 +50,11 @@ local function VerifyOwnerInServer()
     end)
     
     if not ownerFound then
-        print("[SYSTEM] Owner not in server - script idle")
-        warn("[SYSTEM] Owner not in server - script idle")
+        print("[SYSTEM] Owner '" .. OWNER_NAME .. "' not in server - script idle")
         return false
     end
     
-    print("[OWNER] Verified")
+    print("[OWNER] Verified: " .. OWNER_NAME)
     return true
 end
 
