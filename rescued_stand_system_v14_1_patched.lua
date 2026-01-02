@@ -46,88 +46,54 @@
 
 local function SAFE_BOOT()
     local startTime = tick()
-    local maxWaitTime = 20 -- Total timeout for entire boot sequence
+    local maxWaitTime = 20
     
-    print("[SAFE_BOOT] Starting execution gate...")
-    
-    -- GATE 0: Wait for LocalPlayer to exist
-    print("[SAFE_BOOT] Waiting for LocalPlayer...")
+    -- GATE 0: LocalPlayer
     local localPlayer = nil
-    while not localPlayer and (tick() - startTime) < 5 do
+    local gateTimeout = tick() + 5
+    while not localPlayer and tick() < gateTimeout do
         pcall(function()
             localPlayer = game:GetService("Players").LocalPlayer
         end)
-        if not localPlayer then
-            task.wait(0.1)
-        end
+        if not localPlayer then task.wait(0.1) end
     end
+    if not localPlayer then return false end
     
-    if not localPlayer then
-        warn("[SAFE_BOOT] ✗ TIMEOUT: LocalPlayer not available after 5s")
-        return false
-    end
-    print("[SAFE_BOOT] ✓ LocalPlayer ready")
-    
-    -- GATE 1: Wait for LocalPlayer.Character
-    print("[SAFE_BOOT] Waiting for LocalPlayer.Character...")
+    -- GATE 1: Character
     local characterReady = false
-    while not characterReady and (tick() - startTime) < maxWaitTime do
+    gateTimeout = tick() + 10
+    while not characterReady and tick() < gateTimeout do
         pcall(function()
             if localPlayer and localPlayer.Character then
                 characterReady = true
             end
         end)
-        if not characterReady then
-            task.wait(0.1)
-        end
+        if not characterReady then task.wait(0.1) end
     end
+    if not characterReady then return false end
     
-    if not characterReady then
-        warn("[SAFE_BOOT] ✗ TIMEOUT: LocalPlayer.Character not ready after 10s")
-        return false
-    end
-    print("[SAFE_BOOT] ✓ LocalPlayer.Character ready")
-    
-    -- GATE 2: Wait for PlayerGui
-    print("[SAFE_BOOT] Waiting for PlayerGui...")
+    -- GATE 2: PlayerGui
     local playerGui = nil
-    while not playerGui and (tick() - startTime) < maxWaitTime do
+    gateTimeout = tick() + 5
+    while not playerGui and tick() < gateTimeout do
         pcall(function()
             playerGui = localPlayer:FindFirstChild("PlayerGui")
         end)
-        if not playerGui then
-            task.wait(0.1)
-        end
+        if not playerGui then task.wait(0.1) end
     end
+    if not playerGui then return false end
     
-    if not playerGui then
-        warn("[SAFE_BOOT] ✗ TIMEOUT: PlayerGui not ready after 5s")
-        return false
-    end
-    print("[SAFE_BOOT] ✓ PlayerGui ready")
-    
-    -- GATE 3: Wait for Da Hood Framework (optional, non-blocking)
-    print("[SAFE_BOOT] Checking for Da Hood Framework...")
+    -- GATE 3: Framework (optional)
     local frameworkReady = false
-    while not frameworkReady and (tick() - startTime) < maxWaitTime do
+    gateTimeout = tick() + 5
+    while not frameworkReady and tick() < gateTimeout do
         pcall(function()
             local framework = playerGui:FindFirstChild("Framework")
-            if framework then
-                frameworkReady = true
-            end
+            if framework then frameworkReady = true end
         end)
-        if not frameworkReady then
-            task.wait(0.1)
-        end
+        if not frameworkReady then task.wait(0.1) end
     end
     
-    if not frameworkReady then
-        warn("[SAFE_BOOT] ⚠ Da Hood Framework not detected (continuing anyway)")
-    else
-        print("[SAFE_BOOT] ✓ Da Hood Framework detected")
-    end
-    
-    print("[SAFE_BOOT] ✓ All gates passed - system ready to initialize")
     return true
 end
 
@@ -357,14 +323,30 @@ local function ChatUIReset()
             end
         end)
         
+        -- Make chat scrollable and show history
+        pcall(function()
+            local scrollingFrame = chat:FindFirstChild("ScrollingFrame")
+            if scrollingFrame then
+                scrollingFrame.Visible = true
+                scrollingFrame.CanScroll = true
+            end
+        end)
+        
+        -- Restore chat input visibility
+        pcall(function()
+            local textBox = chat:FindFirstChild("TextBox")
+            if textBox then
+                textBox.Visible = true
+            end
+        end)
+        
         success = true
     end)
     
     if success then
-        print("[CHAT RESET] ✓ Chat UI restored to default position (visible)")
+        print("[CHAT RESET] ✓ Chat UI restored to default position (visible + history)")
     else
-        warn("[CHAT RESET] ✗ Chat UI reset failed: " .. (errorMsg or "Unknown error"))
-        warn("[CHAT RESET] System will continue with chat tracking enabled (UI-independent)")
+        print("[CHAT RESET] Chat UI reset attempted: " .. (errorMsg or "Unknown error"))
     end
     
     return success
@@ -468,12 +450,13 @@ local Config = {
 
 --// UTILITIES
 local function Notify(title, text)
+    if not title or not text then return end
     pcall(function()
         local starterGui = game:GetService("StarterGui")
         if starterGui and typeof(starterGui.SetCore) == "function" then
             starterGui:SetCore("SendNotification", {
-                Title = title,
-                Text = text,
+                Title = tostring(title),
+                Text = tostring(text),
                 Duration = 5
             })
         end
@@ -888,61 +871,319 @@ function RemoteAnalyzer:PrintDiscoveryReport()
     return report
 end
 
---// REMOTE MANAGER (VERIFIED EXECUTION WITH FAILURE TRACKING)
-local RemoteManager = {
-    Primary = nil,
-    Cache = {},
-    LastFireTime = 0,
-    FireCooldown = 0.01,
-    RemoteFound = false,
-    RemoteNotified = false,
-    ConsecutiveFailures = 0
-}
+--// REMOTE DISCOVERY & DIAGNOSTIC SYSTEM (V15)
+local DIAGNOSTIC_MODE = true
 
-function RemoteManager:Scan()
-    if self.RemoteFound then return end
-    
-    RemoteAnalyzer:EnumerateAllRemotes()
-    
-    local function scanRecursive(parent)
-        pcall(function()
-            for _, obj in pairs(parent:GetChildren()) do
-                if obj:IsA("RemoteEvent") then
-                    if not self.Primary then
-                        self.Primary = obj
-                    end
-                    self.Cache[obj.Name] = obj
-                    RemoteAnalyzer:HookRemote(obj.Name, obj)
-                end
-                scanRecursive(obj)
-            end
-        end)
+local function GetFullPath(instance)
+    local path = instance.Name
+    local parent = instance.Parent
+    while parent and parent ~= game do
+        path = parent.Name .. "/" .. path
+        parent = parent.Parent
     end
-    
-    scanRecursive(ReplicatedStorage)
-    
-    if not self.Primary then
-        pcall(function()
-            for _, obj in pairs(ReplicatedStorage:GetDescendants()) do
-                if obj:IsA("RemoteEvent") then
-                    self.Primary = obj
-                    RemoteAnalyzer:HookRemote(obj.Name, obj)
-                    break
-                end
-            end
-        end)
-    end
-    
-    self.RemoteFound = true
+    return path
 end
 
-function RemoteManager:Fire(...)
-    if not self.Primary then
-        if not self.RemoteNotified then
-            Notify("REMOTE", "No RemoteEvent found. Combat disabled.")
-            self.RemoteNotified = true
-            State.CombatDisabled = true
+local function GetTypeName(value)
+    if value == nil then return "nil" end
+    if typeof(value) == "Instance" then return "Instance<" .. value.ClassName .. ">" end
+    return typeof(value)
+end
+
+local function DiagLog(prefix, message)
+    if DIAGNOSTIC_MODE then
+        print("[" .. prefix .. "] " .. tostring(message))
+    end
+end
+
+--// PHASE 1: ENHANCED REMOTE SCANNING
+function RemoteAnalyzer:ScanRemotesWithDiagnostics()
+    DiagLog("SCAN", "Starting enhanced remote discovery...")
+    
+    local function scanRecursive(parent, location, depth)
+        if depth > 15 then return end
+        
+        pcall(function()
+            for _, obj in pairs(parent:GetChildren()) do
+                if obj:IsA("RemoteEvent") or obj:IsA("RemoteFunction") then
+                    local fullPath = GetFullPath(obj)
+                    local remoteType = obj.ClassName
+                    
+                    if not self.DiscoveredRemotes[obj.Name] then
+                        self.DiscoveredRemotes[obj.Name] = {
+                            Instance = obj,
+                            Type = remoteType,
+                            Path = fullPath,
+                            Location = location,
+                            Parent = obj.Parent.Name,
+                            FirstSeen = tick(),
+                            CallCount = 0,
+                            LastCallTime = 0,
+                            ArgumentPatterns = {}
+                        }
+                        
+                        DiagLog("REMOTE", string.format("%s | %s | %s | Parent: %s", 
+                            remoteType, obj.Name, fullPath, obj.Parent.Name))
+                    end
+                end
+                
+                scanRecursive(obj, location, depth + 1)
+            end
+        end)
+    end
+    
+    DiagLog("SCAN", "Scanning ReplicatedStorage...")
+    scanRecursive(ReplicatedStorage, "ReplicatedStorage", 0)
+    
+    DiagLog("SCAN", "Scanning Workspace...")
+    scanRecursive(game:GetService("Workspace"), "Workspace", 0)
+    
+    DiagLog("SCAN", "Scanning player tools...")
+    pcall(function()
+        if LocalPlayer and LocalPlayer.Character then
+            for _, tool in pairs(LocalPlayer.Character:GetChildren()) do
+                if tool:IsA("Tool") or tool:IsA("Backpack") then
+                    scanRecursive(tool, "PlayerTool", 0)
+                end
+            end
         end
+    end)
+    
+    DiagLog("SCAN", "Remote discovery complete. Found: " .. table.getn(self.DiscoveredRemotes) .. " remotes")
+end
+
+--// PHASE 2: REMOTE CALL INTERCEPTION LOGGING
+function RemoteAnalyzer:HookRemoteCallLogging()
+    DiagLog("HOOK", "Setting up remote call logging...")
+    
+    for remoteName, remoteData in pairs(self.DiscoveredRemotes) do
+        if remoteData.Instance and remoteData.Type == "RemoteEvent" then
+            pcall(function()
+                local remote = remoteData.Instance
+                local originalFireServer = remote.FireServer
+                
+                if typeof(originalFireServer) == "function" then
+                    local remoteNameCopy = remoteName
+                    local remoteDataCopy = remoteData
+                    
+                    remote.FireServer = function(self, ...)
+                        local args = {...}
+                        local argCount = #args
+                        local argTypes = {}
+                        
+                        for i, arg in ipairs(args) do
+                            table.insert(argTypes, GetTypeName(arg))
+                        end
+                        
+                        local timeSinceLastCombat = tick() - RemoteAnalyzer.LastCombatActionTime
+                        
+                        DiagLog("REMOTE_CALL", string.format("%s | Args: %d | Types: %s | TimeSinceCombat: %.2fs",
+                            remoteNameCopy, argCount, table.concat(argTypes, ", "), timeSinceLastCombat))
+                        
+                        table.insert(RemoteAnalyzer.CallLog, {
+                            RemoteName = remoteNameCopy,
+                            ArgumentCount = argCount,
+                            ArgumentTypes = argTypes,
+                            Arguments = args,
+                            Timestamp = tick(),
+                            TimeSinceCombat = timeSinceLastCombat,
+                            CombatActionType = RemoteAnalyzer.LastCombatActionType
+                        })
+                        
+                        if #RemoteAnalyzer.CallLog > RemoteAnalyzer.MaxLogSize then
+                            table.remove(RemoteAnalyzer.CallLog, 1)
+                        end
+                        
+                        remoteDataCopy.CallCount = remoteDataCopy.CallCount + 1
+                        remoteDataCopy.LastCallTime = tick()
+                        
+                        local patternKey = table.concat(argTypes, ",")
+                        if not remoteDataCopy.ArgumentPatterns[patternKey] then
+                            remoteDataCopy.ArgumentPatterns[patternKey] = 0
+                        end
+                        remoteDataCopy.ArgumentPatterns[patternKey] = remoteDataCopy.ArgumentPatterns[patternKey] + 1
+                        
+                        return originalFireServer(self, ...)
+                    end
+                end
+            end)
+        end
+    end
+    
+    DiagLog("HOOK", "Remote call logging initialized")
+end
+
+--// PHASE 3: COMBAT ACTION TRACKING
+function RemoteAnalyzer:RegisterCombatActionDiagnostic(actionType)
+    self.LastCombatActionTime = tick()
+    self.LastCombatActionType = actionType
+    
+    DiagLog("COMBAT_ACTION", "Registered: " .. actionType)
+end
+
+--// PHASE 4: COMBAT-REMOTE CORRELATION ANALYSIS
+function RemoteAnalyzer:AnalyzeCombatCorrelation()
+    DiagLog("CORRELATE", "Analyzing remote calls for combat correlation...")
+    
+    local combatRemotes = {}
+    
+    for remoteName, remoteData in pairs(self.DiscoveredRemotes) do
+        local callsInCombatWindow = 0
+        local totalCalls = 0
+        
+        for _, callLog in ipairs(self.CallLog) do
+            if callLog.RemoteName == remoteName then
+                totalCalls = totalCalls + 1
+                if callLog.TimeSinceCombat <= 0.5 and callLog.CombatActionType then
+                    callsInCombatWindow = callsInCombatWindow + 1
+                end
+            end
+        end
+        
+        if callsInCombatWindow > 0 then
+            local correlationRatio = callsInCombatWindow / math.max(totalCalls, 1)
+            
+            if correlationRatio > 0.7 then
+                table.insert(combatRemotes, {
+                    Name = remoteName,
+                    Correlation = correlationRatio,
+                    CallCount = totalCalls,
+                    CombatCalls = callsInCombatWindow,
+                    Data = remoteData
+                })
+                
+                DiagLog("CORRELATE", string.format("COMBAT_PRIMARY: %s (%.1f%% correlation, %d calls)",
+                    remoteName, correlationRatio * 100, totalCalls))
+            else
+                DiagLog("CORRELATE", string.format("COMBAT_SECONDARY: %s (%.1f%% correlation, %d calls)",
+                    remoteName, correlationRatio * 100, totalCalls))
+            end
+        end
+    end
+    
+    table.sort(combatRemotes, function(a, b) return a.Correlation > b.Correlation end)
+    return combatRemotes
+end
+
+--// PHASE 5: DIAGNOSTIC REPORT GENERATION
+function RemoteAnalyzer:PrintFullDiagnosticReport()
+    print("\n" .. string.rep("=", 70))
+    print("REMOTE DISCOVERY & COMBAT BINDING DIAGNOSTIC REPORT")
+    print(string.rep("=", 70))
+    
+    print("\n--- DISCOVERED REMOTES BY LOCATION ---")
+    
+    local byLocation = {}
+    for remoteName, remoteData in pairs(self.DiscoveredRemotes) do
+        if not byLocation[remoteData.Location] then
+            byLocation[remoteData.Location] = {}
+        end
+        table.insert(byLocation[remoteData.Location], {Name = remoteName, Data = remoteData})
+    end
+    
+    for location, remotes in pairs(byLocation) do
+        print("\n[" .. location .. "]")
+        for _, remote in ipairs(remotes) do
+            print(string.format("  %s | %s | Calls: %d",
+                remote.Data.Type, remote.Name, remote.Data.CallCount))
+        end
+    end
+    
+    print("\n--- COMBAT CORRELATION ANALYSIS ---")
+    local combatRemotes = self:AnalyzeCombatCorrelation()
+    for _, combat in ipairs(combatRemotes) do
+        print(string.format("  %s | Correlation: %.1f%% | Calls: %d | Combat: %d",
+            combat.Name, combat.Correlation * 100, combat.CallCount, combat.CombatCalls))
+    end
+    
+    print("\n--- REMOTE CALL LOG (Last 20) ---")
+    local startIdx = math.max(1, #self.CallLog - 19)
+    for i = startIdx, #self.CallLog do
+        local log = self.CallLog[i]
+        print(string.format("  %s | Args: %d | Types: %s | Action: %s",
+            log.RemoteName, log.ArgumentCount, table.concat(log.ArgumentTypes, ","), 
+            log.CombatActionType or "NONE"))
+    end
+    
+    print("\n" .. string.rep("=", 70) .. "\n")
+end
+
+--// EMPIRICAL COMBAT REMOTE BINDING SYSTEM
+local CombatRemoteBinder = {
+    SelectedRemote = nil,
+    SelectedRemotePath = nil,
+    ArgumentPattern = nil,
+    ArgumentCount = 0,
+    LastFireTime = 0,
+    FireCooldown = 0.01,
+    ConsecutiveFailures = 0,
+    BindingStatus = "PENDING",
+    CandidateRemotes = {}
+}
+
+function CombatRemoteBinder:FindCombatCandidates()
+    local combatKeywords = {"attack", "hit", "damage", "fire", "punch", "knife", "stomp", "gun", "action", "input", "event"}
+    local candidates = {}
+    
+    pcall(function()
+        for remoteName, remoteData in pairs(RemoteAnalyzer.DiscoveredRemotes) do
+            if remoteData and remoteData.Instance and remoteData.Type == "RemoteEvent" then
+                local lowerName = remoteName:lower()
+                for _, keyword in ipairs(combatKeywords) do
+                    if lowerName:find(keyword) then
+                        table.insert(candidates, {
+                            Name = remoteName,
+                            Instance = remoteData.Instance,
+                            Path = remoteData.Path,
+                            Priority = 0
+                        })
+                        break
+                    end
+                end
+            end
+        end
+    end)
+    
+    if #candidates == 0 then
+        pcall(function()
+            for remoteName, remoteData in pairs(RemoteAnalyzer.DiscoveredRemotes) do
+                if remoteData and remoteData.Instance and remoteData.Type == "RemoteEvent" then
+                    table.insert(candidates, {
+                        Name = remoteName,
+                        Instance = remoteData.Instance,
+                        Path = remoteData.Path,
+                        Priority = -1
+                    })
+                end
+            end
+        end)
+    end
+    
+    table.sort(candidates, function(a, b) return a.Priority > b.Priority end)
+    self.CandidateRemotes = candidates
+    return candidates
+end
+
+function CombatRemoteBinder:SelectBestCandidate()
+    if #self.CandidateRemotes == 0 then
+        self.BindingStatus = "FAILED"
+        return false
+    end
+    
+    local bestCandidate = self.CandidateRemotes[1]
+    if bestCandidate and bestCandidate.Instance then
+        self.SelectedRemote = bestCandidate.Instance
+        self.SelectedRemotePath = bestCandidate.Path
+        self.BindingStatus = "OK"
+        return true
+    end
+    
+    self.BindingStatus = "FAILED"
+    return false
+end
+
+function CombatRemoteBinder:Fire(...)
+    if not self.SelectedRemote then
         self.ConsecutiveFailures = self.ConsecutiveFailures + 1
         return false
     end
@@ -954,8 +1195,8 @@ function RemoteManager:Fire(...)
     self.LastFireTime = now
     
     local success = pcall(function()
-        if self.Primary and typeof(self.Primary.FireServer) == "function" then
-            self.Primary:FireServer(...)
+        if self.SelectedRemote and typeof(self.SelectedRemote.FireServer) == "function" then
+            self.SelectedRemote:FireServer(...)
         end
     end)
     
@@ -968,10 +1209,10 @@ function RemoteManager:Fire(...)
     return success
 end
 
-function RemoteManager:CheckFailureThreshold()
+function CombatRemoteBinder:CheckFailureThreshold()
     if self.ConsecutiveFailures >= Config.AttackFailureThreshold then
         if not State.CombatDisabled then
-            Notify("COMBAT", "Combat disabled: Remote not responding after " .. Config.AttackFailureThreshold .. " attempts")
+            DiagLog("COMBAT_REMOTE", "Combat disabled: Remote not responding after " .. Config.AttackFailureThreshold .. " attempts")
             State.CombatDisabled = true
         end
         return true
@@ -979,11 +1220,8 @@ function RemoteManager:CheckFailureThreshold()
     return false
 end
 
---// STAND BUILDER (VERIFIED PHYSICS WITH OFFSET VALIDATION)
-local StandBuilder = {}
-
-function StandBuilder:ValidateFollowOffset(offset)
-    local pos = offset.Position
+function CombatRemoteBinder:PrintBindingReport()
+    print("\n
     local magnitude = pos.Magnitude
     if magnitude > 20 then
         return CFrame.new(pos.Unit * 20)
@@ -1378,13 +1616,17 @@ function Router:Route(msg)
     
     local args = nil
     pcall(function()
-        args = msg:split(" ")
+        if msg and typeof(msg.split) == "function" then
+            args = msg:split(" ")
+        end
     end)
     if not args or #args == 0 then return end
     
     local cmd = ""
     pcall(function()
-        cmd = args[1]:lower()
+        if args[1] and typeof(args[1].lower) == "function" then
+            cmd = args[1]:lower()
+        end
     end)
     if not cmd or cmd == "" then return end
 
