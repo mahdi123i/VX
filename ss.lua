@@ -31,7 +31,7 @@ local function VerifyOwnerInServer()
     
     -- Fallback if not set
     if not OWNER_NAME or OWNER_NAME == "" then
-        OWNER_NAME = "hugwag"
+        OWNER_NAME = "Mahdirml123i"
     end
     
     -- Verify owner is in server (name-based only)
