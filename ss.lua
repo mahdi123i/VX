@@ -2,6 +2,7 @@
 DUAL-MODE BOOTSTRAP - Works in ALL executors
 Supports: loadstring executors AND non-loadstring executors
 Architecture: Stando/Moonstand compatible
+FIXED: Pure LocalPlayer.Chatted, ZERO UI dependencies
 ]]
 
 local DUAL_MODE_BOOT = {}
@@ -248,65 +249,6 @@ local function GetTargetHumanoid(player)
         hum = player.Character:FindFirstChildOfClass("Humanoid")
     end)
     return hum
-end
-
-local function ChatUIReset()
-    local success = false
-    
-    pcall(function()
-        if not LocalPlayer or not LocalPlayer:FindFirstChild("PlayerGui") then
-            return
-        end
-        
-        local playerGui = LocalPlayer.PlayerGui
-        local chat = playerGui:FindFirstChild("Chat") or playerGui:FindFirstChild("ExperienceChat")
-        
-        if not chat then
-            return
-        end
-        
-        local chatFrame = chat:FindFirstChild("Frame") 
-            or chat:FindFirstChild("ChatWindow")
-            or chat:FindFirstChild("MainFrame")
-            or chat:FindFirstChild("ChatBox")
-        
-        if not chatFrame then
-            return
-        end
-        
-        pcall(function()
-            chatFrame.AnchorPoint = Vector2.new(0, 1)
-            chatFrame.Position = UDim2.new(0, 10, 1, -10)
-            chatFrame.Size = UDim2.new(0, 320, 0, 400)
-            chatFrame.Visible = true
-        end)
-        
-        pcall(function()
-            chat.Enabled = true
-        end)
-        
-        pcall(function()
-            if chatFrame:FindFirstChild("Offset") then
-                chatFrame.Offset = UDim2.new(0, 0, 0, 0)
-            end
-        end)
-        
-        pcall(function()
-            for _, child in pairs(chat:GetDescendants()) do
-                if child:IsA("GuiObject") then
-                    child.Visible = true
-                end
-            end
-        end)
-        
-        success = true
-    end)
-    
-    if success then
-        print("[CHAT] Restored")
-    end
-    
-    return success
 end
 
 local ServerAssist = {
@@ -1020,26 +962,46 @@ end
 
 local Router = {}
 
-function Router:Route(msg, originalMsg)
+function Router:NormalizeMessage(msg)
+    if not msg or msg == "" then return "" end
+    msg = msg:match("^%s*(.-)%s*$") or msg
+    return msg:lower()
+end
+
+function Router:ParseCommand(msg)
+    if not msg or msg == "" then return nil, nil end
+    
+    local normalized = self:NormalizeMessage(msg)
+    if not normalized or normalized == "" then return nil, nil end
+    
+    local prefix = Config.Prefix
+    if normalized:sub(1, 1) ~= prefix then
+        return nil, nil
+    end
+    
+    local cmdPart = normalized:sub(2)
+    local args = {}
+    
+    for arg in cmdPart:gmatch("%S+") do
+        table.insert(args, arg)
+    end
+    
+    if #args == 0 then return nil, nil end
+    
+    local cmd = args[1]
+    return cmd, args
+end
+
+function Router:Route(msg)
     if not msg or msg == "" then return end
     
-    local args = nil
-    pcall(function()
-        if msg and typeof(msg.split) == "function" then
-            args = msg:split(" ")
-        end
-    end)
-    if not args or #args == 0 then return end
+    local cmd, args = self:ParseCommand(msg)
     
-    local cmd = ""
-    pcall(function()
-        if args[1] and typeof(args[1].lower) == "function" then
-            cmd = args[1]:lower()
-        end
-    end)
-    if not cmd or cmd == "" then return end
-
-    if cmd == "s" or cmd == "summon" or cmd == "summon!" or cmd == "/e q" then
+    if not cmd then
+        return
+    end
+    
+    if cmd == "s" or cmd == "summon" then
         if not State.IsSummoned then
             State.IsSummoned = true
             State.CombatDisabled = false
@@ -1054,7 +1016,8 @@ function Router:Route(msg, originalMsg)
             StandBuilder:Create()
             Notify("SYSTEM", "Stand Summoned")
         end
-    elseif cmd == "vanish" or cmd == "vanish!" or cmd == "/e w" then
+    
+    elseif cmd == "vanish" then
         if State.IsSummoned then
             State.IsSummoned = false
             Combat:StopBarrage()
@@ -1063,36 +1026,34 @@ function Router:Route(msg, originalMsg)
             Notify("SYSTEM", "Stand Vanished")
         end
     
-    elseif cmd == "combat" or cmd == "combat!" then
+    elseif cmd == "combat" then
         State.AttackMode = "Combat"
         Notify("MODE", "Combat | Range: 2.8 | Speed: 0.05s")
-    elseif cmd == "knife" or cmd == "knife!" then
+    
+    elseif cmd == "knife" then
         State.AttackMode = "Knife"
         Notify("MODE", "Knife | Range: 1.5 | Speed: 0.03s")
-    elseif cmd == "whip" or cmd == "whip!" then
+    
+    elseif cmd == "whip" then
         State.AttackMode = "Whip"
         Notify("MODE", "Whip | Range: 5.0 | Speed: 0.08s")
-    elseif cmd == "pitch" or cmd == "pitch!" then
+    
+    elseif cmd == "pitch" then
         State.AttackMode = "Pitch"
         Notify("MODE", "Pitch | Range: 3.5 | Speed: 0.06s")
-    elseif cmd == "sign" or cmd == "sign!" then
+    
+    elseif cmd == "sign" then
         State.AttackMode = "Sign"
         Notify("MODE", "Sign | Range: 4.0 | Speed: 0.07s")
     
-    elseif cmd == "barrage" or cmd == "barrage!" or cmd == "ora" or cmd == "ora!" or cmd == "muda" or cmd == "muda!" then
+    elseif cmd == "barrage" or cmd == "ora" or cmd == "muda" then
         if State.CombatDisabled then
             Notify("ERROR", "Combat disabled")
-            return
-        end
-        if State.BarrageDisabled then
+        elseif State.BarrageDisabled then
             Notify("ERROR", "Barrage disabled")
-            return
-        end
-        if not State.IsSummoned then
+        elseif not State.IsSummoned then
             Notify("ERROR", "Stand must be summoned")
-            return
-        end
-        if State.Target and IsPlayerValid(State.Target) then
+        elseif State.Target and IsPlayerValid(State.Target) then
             if Combat:Barrage() then
                 Notify("BARRAGE", "Started on " .. State.Target.Name)
             else
@@ -1102,35 +1063,17 @@ function Router:Route(msg, originalMsg)
             Notify("ERROR", "No valid target")
         end
     
-    elseif cmd == "unattack" or cmd == "unattack!" or cmd == "stop" or cmd == "stop!" then
+    elseif cmd == "stop" or cmd == "unattack" then
         Combat:StopBarrage()
         State.AutoKill = false
         State.Target = nil
         Notify("SYSTEM", "Attack stopped")
     
-    elseif cmd:sub(1, 1) == Config.Prefix then
-        local action = ""
-        pcall(function()
-            action = cmd:sub(2)
-        end)
-        
-        local targetName = nil
-        if originalMsg then
-            local origArgs = originalMsg:split(" ")
-            if origArgs and origArgs[2] then
-                targetName = origArgs[2]
-            end
-        else
-            targetName = args[2]
-        end
-        
-        local p = nil
+    elseif cmd == "bring" then
+        local targetName = args[2]
         if targetName then
-            p = GetPlayer(targetName)
-        end
-        
-        if action == "bring" and p then
-            if IsPlayerValid(p) then
+            local p = GetPlayer(targetName)
+            if p and IsPlayerValid(p) then
                 local r = SafeGetRoot(p.Character)
                 local myR = SafeGetRoot(LocalPlayer.Character)
                 if r and myR then
@@ -1140,17 +1083,19 @@ function Router:Route(msg, originalMsg)
             else
                 Notify("ERROR", "Player not found")
             end
-        
-        elseif action == "autokill" and p then
+        else
+            Notify("ERROR", "Usage: .bring <player>")
+        end
+    
+    elseif cmd == "autokill" then
+        local targetName = args[2]
+        if targetName then
+            local p = GetPlayer(targetName)
             if State.CombatDisabled then
                 Notify("ERROR", "Combat disabled")
-                return
-            end
-            if not State.IsSummoned then
+            elseif not State.IsSummoned then
                 Notify("ERROR", "Stand must be summoned")
-                return
-            end
-            if IsPlayerValid(p) then
+            elseif p and IsPlayerValid(p) then
                 State.Target = p
                 State.AutoKill = true
                 State.AutoKillStartTime = tick()
@@ -1159,9 +1104,15 @@ function Router:Route(msg, originalMsg)
             else
                 Notify("ERROR", "Player not found")
             end
-        
-        elseif action == "smite" and p then
-            if IsPlayerValid(p) then
+        else
+            Notify("ERROR", "Usage: .autokill <player>")
+        end
+    
+    elseif cmd == "smite" then
+        local targetName = args[2]
+        if targetName then
+            local p = GetPlayer(targetName)
+            if p and IsPlayerValid(p) then
                 local r = SafeGetRoot(p.Character)
                 if r then
                     local v = nil
@@ -1179,147 +1130,41 @@ function Router:Route(msg, originalMsg)
             else
                 Notify("ERROR", "Player not found")
             end
+        else
+            Notify("ERROR", "Usage: .smite <player>")
+        end
+    
+    elseif cmd == "tp" or cmd == "to" or cmd == "goto" then
+        local loc = args[2]
+        if loc and Config.Locations[loc] then
+            local myR = SafeGetRoot(LocalPlayer.Character)
+            if myR then
+                pcall(function()
+                    myR.CFrame = CFrame.new(Config.Locations[loc])
+                end)
+                Notify("TELEPORT", "Teleported to " .. loc)
+            end
+        else
+            Notify("ERROR", "Location not found")
+        end
+    
+    else
+        local followModes = {
+            ["back"] = "Back",
+            ["left"] = "Left",
+            ["right"] = "Right",
+            ["under"] = "Under",
+            ["alt"] = "Alt",
+            ["upright"] = "Upright",
+            ["upleft"] = "Upleft",
+            ["upcenter"] = "Upcenter"
+        }
         
-        elseif action == "to" or action == "goto" or action == "goto!" or action == "tp" or action == "tp!" then
-            local loc = args[2]
-            if loc and Config.Locations[loc] then
-                local myR = SafeGetRoot(LocalPlayer.Character)
-                if myR then
-                    pcall(function()
-                        myR.CFrame = CFrame.new(Config.Locations[loc])
-                    end)
-                    Notify("TELEPORT", "Teleported to " .. loc)
-                end
-            else
-                Notify("ERROR", "Location not found")
-            end
+        if followModes[cmd] then
+            State.FollowMode = followModes[cmd]
+            Notify("FOLLOW", "Mode: " .. followModes[cmd])
         end
     end
-    
-    local followModes = {
-        ["back"] = "Back",
-        ["back!"] = "Back",
-        ["left"] = "Left",
-        ["left!"] = "Left",
-        ["right"] = "Right",
-        ["right!"] = "Right",
-        ["under"] = "Under",
-        ["under!"] = "Under",
-        ["alt"] = "Alt",
-        ["alt!"] = "Alt",
-        ["upright"] = "Upright",
-        ["upright!"] = "Upright",
-        ["upleft"] = "Upleft",
-        ["upleft!"] = "Upleft",
-        ["upcenter"] = "Upcenter",
-        ["upcenter!"] = "Upcenter"
-    }
-    
-    if followModes[cmd] then
-        State.FollowMode = followModes[cmd]
-        Notify("FOLLOW", "Mode: " .. followModes[cmd])
-    end
-end
-
-local ChatNormalizer = {
-    LastChatTime = 0,
-    ChatCooldown = 0.05,
-    Connections = {}
-}
-
-function ChatNormalizer:Normalize(text)
-    if not text or text == "" then return "" end
-    
-    text = text:match("^%s*(.-)%s*$") or text
-    
-    local prefix = ""
-    if text:sub(1, 1) == "." or text:sub(1, 1) == "/" then
-        prefix = text:sub(1, 1)
-        text = text:sub(2)
-    end
-    
-    text = text:lower()
-    
-    return prefix .. text
-end
-
-function ChatNormalizer:ProcessChat(msg)
-    if not msg or msg == "" then return end
-    
-    local now = tick()
-    if now - self.LastChatTime < self.ChatCooldown then
-        return
-    end
-    self.LastChatTime = now
-    
-    local normalized = self:Normalize(msg)
-    if normalized and normalized ~= "" then
-        print("[CHAT] Command: " .. normalized)
-        Router:Route(normalized, msg)
-    end
-end
-
-function ChatNormalizer:ProcessChatDirect(msg)
-    if not msg or msg == "" then return end
-    self:ProcessChat(msg)
-end
-
-function ChatNormalizer:Hook()
-    if self.Connections.Chatted then
-        pcall(function() self.Connections.Chatted:Disconnect() end)
-    end
-    
-    pcall(function()
-        if LocalPlayer then
-            self.Connections.Chatted = LocalPlayer.Chatted:Connect(function(msg)
-                self:ProcessChatDirect(msg)
-            end)
-        end
-    end)
-    
-    task.defer(function()
-        pcall(function()
-            local playerGui = LocalPlayer:FindFirstChild("PlayerGui")
-            if playerGui then
-                local chat = playerGui:FindFirstChild("Chat") or playerGui:FindFirstChild("ExperienceChat")
-                if chat then
-                    local chatFrame = chat:FindFirstChild("Frame") 
-                        or chat:FindFirstChild("ChatWindow")
-                        or chat:FindFirstChild("MainFrame")
-                        or chat:FindFirstChild("ChatBox")
-                    
-                    if chatFrame then
-                        local textBox = nil
-                        pcall(function()
-                            for _, child in pairs(chat:GetDescendants()) do
-                                if child:IsA("TextBox") and (child.Name:lower():find("input") or child.Name:lower():find("textbox")) then
-                                    textBox = child
-                                    break
-                                end
-                            end
-                        end)
-                        
-                        if textBox then
-                            if self.Connections.TextBoxFocusLost then
-                                pcall(function() self.Connections.TextBoxFocusLost:Disconnect() end)
-                            end
-                            
-                            self.Connections.TextBoxFocusLost = textBox.FocusLost:Connect(function(enterPressed)
-                                if enterPressed and textBox.Text ~= "" then
-                                    self:ProcessChatDirect(textBox.Text)
-                                    pcall(function()
-                                        textBox.Text = ""
-                                    end)
-                                end
-                            end)
-                        end
-                    end
-                end
-            end
-        end)
-    end)
-    
-    print("[CHAT] Hooked")
 end
 
 RunService.Heartbeat:Connect(function()
@@ -1475,22 +1320,10 @@ State.BarrageActive = false
 State.HasConfirmedSingleAttack = false
 EffectVerifier:ResetTracking()
 
-ChatNormalizer:Hook()
-
 print("[SYSTEM] Ready")
 
 task.spawn(function()
-    ChatUIReset()
     RemoteManager:Scan()
-    pcall(function()
-        if LocalPlayer and LocalPlayer.Character then
-            local myRoot = SafeGetRoot(LocalPlayer.Character)
-            if myRoot then
-                myRoot.CFrame = CFrame.new(Config.Locations.safe1)
-            end
-        end
-    end)
-    Notify("SYSTEM", "Ready")
 end)
 
 if LocalPlayer then
@@ -1522,6 +1355,17 @@ pcall(function()
             Notify("AUTOKILL", "Target left")
         end
     end)
+end)
+
+pcall(function()
+    if LocalPlayer then
+        LocalPlayer.Chatted:Connect(function(msg)
+            if msg and msg ~= "" then
+                print("[CHAT] " .. msg)
+                Router:Route(msg)
+            end
+        end)
+    end
 end)
 ]]
 
