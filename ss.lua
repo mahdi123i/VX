@@ -11,11 +11,8 @@
     ✓ Stand stability (NetworkOwnership, respawn handling)
     ✓ All commands work like Stando/Moonstand
     ✓ LOADSTRING SAFE - NO SYNTAX ERRORS
+    ✓ NO LEADERSTATS DEPENDENCY
 ]]
-
---// ============================================================================
---// PHASE 0: OWNER VERIFICATION (MUST RUN FIRST)
---// ============================================================================
 
 local OWNER_NAME = nil
 
@@ -59,10 +56,6 @@ if not VerifyOwnerInServer() then
     return
 end
 
---// ============================================================================
---// PHASE 1: SAFE BOOT GATE
---// ============================================================================
-
 local function FAST_BOOT()
     local localPlayer = nil
     pcall(function()
@@ -82,10 +75,6 @@ if not FAST_BOOT() then
     print("[FATAL] Fast boot failed")
     return
 end
-
---// ============================================================================
---// PHASE 2: SERVICES & STATE
---// ============================================================================
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -182,10 +171,6 @@ local Config = {
     CausalityWindow = 0.5
 }
 
---// ============================================================================
---// PHASE 3: UTILITIES
---// ============================================================================
-
 local function Notify(title, text)
     if not title or not text then return end
     pcall(function()
@@ -252,10 +237,6 @@ local function GetTargetHumanoid(player)
     return hum
 end
 
---// ============================================================================
---// PHASE 4: CHAT UI RESET (DA HOOD HARDENED)
---// ============================================================================
-
 local function ChatUIReset()
     local success = false
     
@@ -314,10 +295,6 @@ local function ChatUIReset()
     
     return success
 end
-
---// ============================================================================
---// PHASE 5: SERVER ASSIST (STANDO-LIKE EMULATION)
---// ============================================================================
 
 local ServerAssist = {
     CombatQueue = {},
@@ -501,10 +478,6 @@ function ServerAssist:Reset()
     self.DynamicCooldown = self.BaseCooldown
 end
 
---// ============================================================================
---// PHASE 5B: EFFECT VERIFIER (FIFO QUEUE)
---// ============================================================================
-
 local EffectVerifier = {
     AttackQueues = {},
     LastEffectCheckTime = 0,
@@ -589,10 +562,6 @@ function EffectVerifier:ResetTracking(player)
         self.AttackQueues = {}
     end
 end
-
---// ============================================================================
---// PHASE 6: REMOTE MANAGER (VALIDATED + SAFE)
---// ============================================================================
 
 local RemoteManager = {
     Primary = nil,
@@ -764,10 +733,6 @@ function RemoteManager:CheckFailureThreshold()
     return false
 end
 
---// ============================================================================
---// PHASE 7: STAND BUILDER (WITH NETWORKOWNERSHIP)
---// ============================================================================
-
 local StandBuilder = {}
 
 function StandBuilder:ValidateFollowOffset(offset)
@@ -914,10 +879,6 @@ function StandBuilder:SetupFollowLoop()
     end)
 end
 
---// ============================================================================
---// PHASE 8: COMBAT CONTROLLER
---// ============================================================================
-
 local Combat = {}
 
 function Combat:GetAttackConfig()
@@ -1043,10 +1004,6 @@ function Combat:StopBarrage()
         State.BarrageConnection = nil
     end
 end
-
---// ============================================================================
---// PHASE 9: CHAT NORMALIZER & ROUTER (ROBUST PARSING)
---// ============================================================================
 
 local ChatNormalizer = {
     LastChatTime = 0,
@@ -1352,10 +1309,6 @@ function ChatNormalizer:Hook()
     print("[CHAT] Hooked")
 end
 
---// ============================================================================
---// PHASE 10: EFFECT VERIFICATION LOOP
---// ============================================================================
-
 RunService.Heartbeat:Connect(function()
     pcall(function()
         ServerAssist:ProcessQueue()
@@ -1398,10 +1351,6 @@ RunService.Heartbeat:Connect(function()
         end
     end)
 end)
-
---// ============================================================================
---// PHASE 11: MAIN RESOLVER LOOP (SAFE + NON-ABUSIVE)
---// ============================================================================
 
 local lastResolverTime = tick()
 
@@ -1499,10 +1448,6 @@ State.ResolverConnection = RunService.Heartbeat:Connect(function()
     end)
 end)
 
---// ============================================================================
---// PHASE 12: INITIALIZATION SEQUENCE
---// ============================================================================
-
 State.IsSummoned = false
 State.CombatDisabled = false
 State.BarrageDisabled = false
@@ -1535,10 +1480,6 @@ task.spawn(function()
     Notify("SYSTEM", "Ready")
 end)
 
---// ============================================================================
---// PHASE 13: CHARACTER RESPAWN HANDLER
---// ============================================================================
-
 if LocalPlayer then
     pcall(function()
         LocalPlayer.CharacterAdded:Connect(function()
@@ -1556,10 +1497,6 @@ if LocalPlayer then
         end)
     end)
 end
-
---// ============================================================================
---// PHASE 14: PLAYER LEAVING HANDLER
---// ============================================================================
 
 pcall(function()
     game:GetService("Players").PlayerRemoving:Connect(function(player)
