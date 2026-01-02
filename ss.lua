@@ -228,7 +228,7 @@ local function Notify(title, text)
     if not title or not text then return end
     pcall(function()
         local starterGui = game:GetService("StarterGui")
-        if starterGui and typeof(starterGui.SetCore) == "function" then
+        if starterGui and type(starterGui.SetCore) == "function" then
             starterGui:SetCore("SendNotification", {
                 Title = tostring(title),
                 Text = tostring(text),
@@ -500,15 +500,24 @@ function RemoteManager:Scan()
 end
 
 local function DetermineActionToken(targetChar)
+    -- Simplified and explicit token determination to avoid complex expressions that can confuse the parser
     if not targetChar then return "Punch" end
-    
-    local hum = GetTargetHumanoid(targetChar:FindFirstChild("Humanoid") and targetChar or nil)
-    if not hum then return "Punch" end
-    
+
+    local hum = nil
+    pcall(function()
+        if targetChar and targetChar:FindFirstChild("Humanoid") then
+            hum = targetChar:FindFirstChild("Humanoid")
+        end
+    end)
+
+    if not hum then
+        return "Punch"
+    end
+
     if hum.Health <= 10 then
         return "Heavy"
     end
-    
+
     return "Punch"
 end
 
@@ -529,7 +538,7 @@ function RemoteManager:Fire(targetChar)
     self.LastFireTime = now
     
     local success = pcall(function()
-        if self.Primary and typeof(self.Primary.FireServer) == "function" then
+        if self.Primary and type(self.Primary.FireServer) == "function" then
             local myChar = LocalPlayer.Character
             if not myChar then return end
             
@@ -568,7 +577,12 @@ function RemoteManager:AttemptStomp(targetChar)
         return false
     end
     
-    local hum = GetTargetHumanoid(targetChar)
+    local hum = nil
+    pcall(function()
+        if targetChar and targetChar:FindFirstChild("Humanoid") then
+            hum = targetChar:FindFirstChild("Humanoid")
+        end
+    end)
     if not hum then return false end
     
     if hum.Health > 5 then return false end
@@ -582,7 +596,7 @@ function RemoteManager:AttemptStomp(targetChar)
     self.LastStompTime = now
     
     local success = pcall(function()
-        if self.Primary and typeof(self.Primary.FireServer) == "function" then
+        if self.Primary and type(self.Primary.FireServer) == "function" then
             self.Primary:FireServer(
                 "Stomp",
                 targetChar
@@ -952,17 +966,20 @@ local Router = {}
 function Router:Route(msg)
     if not msg or msg == "" then return end
     
-    local args = nil
+    local args = {}
     pcall(function()
-        if msg and typeof(msg.split) == "function" then
-            args = msg:split(" ")
+        if msg and type(msg) == "string" then
+            -- robust tokenization (avoids reliance on :split)
+            for token in msg:gmatch("%S+") do
+                table.insert(args, token)
+            end
         end
     end)
     if not args or #args == 0 then return end
     
     local cmd = ""
     pcall(function()
-        if args[1] and typeof(args[1].lower) == "function" then
+        if args[1] and type(args[1]) == "string" then
             cmd = args[1]:lower()
         end
     end)
