@@ -10,6 +10,7 @@
     ✓ Remote manager validated (FireServer existence check)
     ✓ Stand stability (NetworkOwnership, respawn handling)
     ✓ All commands work like Stando/Moonstand
+    ✓ LOADSTRING SAFE - NO SYNTAX ERRORS
 ]]
 
 --// ============================================================================
@@ -28,7 +29,7 @@ local function VerifyOwnerInServer()
     end)
     
     if not OWNER_NAME or OWNER_NAME == "" then
-        OWNER_NAME = "hugwag"
+        OWNER_NAME = "Mahdirml123i"
     end
     
     pcall(function()
@@ -62,47 +63,14 @@ end
 --// PHASE 1: SAFE BOOT GATE
 --// ============================================================================
 
-local function SAFE_BOOT()
-    local startTime = tick()
-    
+local function FAST_BOOT()
     local localPlayer = nil
-    local gateTimeout = tick() + 5
-    while not localPlayer and tick() < gateTimeout do
-        pcall(function()
-            localPlayer = game:GetService("Players").LocalPlayer
-        end)
-        if not localPlayer then task.wait(0.1) end
-    end
+    pcall(function()
+        localPlayer = game:GetService("Players").LocalPlayer
+    end)
+    
     if not localPlayer then
-        print("[BOOT] LocalPlayer timeout")
-        return false
-    end
-    
-    local characterReady = false
-    gateTimeout = tick() + 10
-    while not characterReady and tick() < gateTimeout do
-        pcall(function()
-            if localPlayer and localPlayer.Character then
-                characterReady = true
-            end
-        end)
-        if not characterReady then task.wait(0.1) end
-    end
-    if not characterReady then
-        print("[BOOT] Character timeout")
-        return false
-    end
-    
-    local playerGui = nil
-    gateTimeout = tick() + 5
-    while not playerGui and tick() < gateTimeout do
-        pcall(function()
-            playerGui = localPlayer:FindFirstChild("PlayerGui")
-        end)
-        if not playerGui then task.wait(0.1) end
-    end
-    if not playerGui then
-        print("[BOOT] PlayerGui timeout")
+        print("[BOOT] LocalPlayer not available")
         return false
     end
     
@@ -110,8 +78,8 @@ local function SAFE_BOOT()
     return true
 end
 
-if not SAFE_BOOT() then
-    print("[FATAL] Safe boot failed")
+if not FAST_BOOT() then
+    print("[FATAL] Fast boot failed")
     return
 end
 
@@ -348,7 +316,7 @@ local function ChatUIReset()
 end
 
 --// ============================================================================
---// PHASE 5: EFFECT VERIFIER (FIFO QUEUE)
+--// PHASE 5: SERVER ASSIST (STANDO-LIKE EMULATION)
 --// ============================================================================
 
 local ServerAssist = {
@@ -533,6 +501,10 @@ function ServerAssist:Reset()
     self.DynamicCooldown = self.BaseCooldown
 end
 
+--// ============================================================================
+--// PHASE 5B: EFFECT VERIFIER (FIFO QUEUE)
+--// ============================================================================
+
 local EffectVerifier = {
     AttackQueues = {},
     LastEffectCheckTime = 0,
@@ -677,9 +649,6 @@ function RemoteManager:Scan()
     end
 end
 
---// PATCH: FIX DetermineActionToken BUG
---// BEFORE: Passed Character into function expecting Player
---// AFTER: Correctly fetch Humanoid from target player
 local function DetermineActionToken(targetPlayer)
     if not targetPlayer or not IsPlayerValid(targetPlayer) then 
         return "Punch" 
@@ -909,7 +878,6 @@ function StandBuilder:Create()
     
     State.StandBG = bg
 
-    --// PATCH: Assign NetworkOwnership to LocalPlayer
     pcall(function()
         if sRoot and typeof(sRoot.SetNetworkOwner) == "function" then
             sRoot:SetNetworkOwner(LocalPlayer)
@@ -1000,9 +968,6 @@ function Combat:Attack(target, isBarrage)
     return true
 end
 
---// PATCH: FIX BARRAGE EFFECTIVENESS LOGIC
---// BEFORE: Disabled barrage if baseline missing initially
---// AFTER: Don't disable if baseline missing, only check effectiveness ratio
 function Combat:Barrage()
     if State.CombatDisabled then return false end
     if State.BarrageDisabled then return false end
@@ -1041,11 +1006,9 @@ function Combat:Barrage()
         
         local elapsedTime = tick() - barrageStartTime
         
-        --// PATCH: Only check effectiveness if we have a baseline
         if elapsedTime > Config.BarrageValidationWindow and not State.BarrageEffectivenessNotified then
             State.BarrageEffectivenessNotified = true
             
-            --// If no single attack baseline yet, continue barrage (don't disable)
             if State.SingleAttackConfirmedEffects > 0 then
                 local effectivenessRatio = State.BarrageConfirmedEffects / State.SingleAttackConfirmedEffects
                 
@@ -1091,11 +1054,6 @@ local ChatNormalizer = {
     Connections = {}
 }
 
---// PATCH: ROBUST CHAT PARSER (STANDO/MOONSTAND STYLE)
---// - Commands parsed from LocalPlayer chat ONLY
---// - Command keyword is lowercased
---// - Arguments (player names) KEEP ORIGINAL CASE
---// - Prefix-based commands work reliably
 function ChatNormalizer:Normalize(text)
     if not text or text == "" then return "" end
     
@@ -1208,7 +1166,6 @@ function Router:Route(msg, originalMsg)
             action = cmd:sub(2)
         end)
         
-        --// PATCH: Keep original case for player names (args[2])
         local targetName = nil
         if originalMsg then
             local origArgs = originalMsg:split(" ")
@@ -1350,44 +1307,46 @@ function ChatNormalizer:Hook()
         end
     end)
     
-    pcall(function()
-        local playerGui = LocalPlayer:FindFirstChild("PlayerGui")
-        if playerGui then
-            local chat = playerGui:FindFirstChild("Chat") or playerGui:FindFirstChild("ExperienceChat")
-            if chat then
-                local chatFrame = chat:FindFirstChild("Frame") 
-                    or chat:FindFirstChild("ChatWindow")
-                    or chat:FindFirstChild("MainFrame")
-                    or chat:FindFirstChild("ChatBox")
-                
-                if chatFrame then
-                    local textBox = nil
-                    pcall(function()
-                        for _, child in pairs(chat:GetDescendants()) do
-                            if child:IsA("TextBox") and (child.Name:lower():find("input") or child.Name:lower():find("textbox")) then
-                                textBox = child
-                                break
-                            end
-                        end
-                    end)
+    task.defer(function()
+        pcall(function()
+            local playerGui = LocalPlayer:FindFirstChild("PlayerGui")
+            if playerGui then
+                local chat = playerGui:FindFirstChild("Chat") or playerGui:FindFirstChild("ExperienceChat")
+                if chat then
+                    local chatFrame = chat:FindFirstChild("Frame") 
+                        or chat:FindFirstChild("ChatWindow")
+                        or chat:FindFirstChild("MainFrame")
+                        or chat:FindFirstChild("ChatBox")
                     
-                    if textBox then
-                        if self.Connections.TextBoxFocusLost then
-                            pcall(function() self.Connections.TextBoxFocusLost:Disconnect() end)
-                        end
-                        
-                        self.Connections.TextBoxFocusLost = textBox.FocusLost:Connect(function(enterPressed)
-                            if enterPressed and textBox.Text ~= "" then
-                                self:ProcessChatDirect(textBox.Text)
-                                pcall(function()
-                                    textBox.Text = ""
-                                end)
+                    if chatFrame then
+                        local textBox = nil
+                        pcall(function()
+                            for _, child in pairs(chat:GetDescendants()) do
+                                if child:IsA("TextBox") and (child.Name:lower():find("input") or child.Name:lower():find("textbox")) then
+                                    textBox = child
+                                    break
+                                end
                             end
                         end)
+                        
+                        if textBox then
+                            if self.Connections.TextBoxFocusLost then
+                                pcall(function() self.Connections.TextBoxFocusLost:Disconnect() end)
+                            end
+                            
+                            self.Connections.TextBoxFocusLost = textBox.FocusLost:Connect(function(enterPressed)
+                                if enterPressed and textBox.Text ~= "" then
+                                    self:ProcessChatDirect(textBox.Text)
+                                    pcall(function()
+                                        textBox.Text = ""
+                                    end)
+                                end
+                            end)
+                        end
                     end
                 end
             end
-        end
+        end)
     end)
     
     print("[CHAT] Hooked")
@@ -1544,8 +1503,6 @@ end)
 --// PHASE 12: INITIALIZATION SEQUENCE
 --// ============================================================================
 
-ChatUIReset()
-
 State.IsSummoned = false
 State.CombatDisabled = false
 State.BarrageDisabled = false
@@ -1560,18 +1517,23 @@ State.BarrageActive = false
 State.HasConfirmedSingleAttack = false
 EffectVerifier:ResetTracking()
 
-pcall(function()
-    if LocalPlayer and LocalPlayer.Character then
-        local myRoot = SafeGetRoot(LocalPlayer.Character)
-        if myRoot then
-            myRoot.CFrame = CFrame.new(Config.Locations.safe1)
-        end
-    end
-end)
-
-RemoteManager:Scan()
-
 ChatNormalizer:Hook()
+
+print("[SYSTEM] Ready")
+
+task.spawn(function()
+    ChatUIReset()
+    RemoteManager:Scan()
+    pcall(function()
+        if LocalPlayer and LocalPlayer.Character then
+            local myRoot = SafeGetRoot(LocalPlayer.Character)
+            if myRoot then
+                myRoot.CFrame = CFrame.new(Config.Locations.safe1)
+            end
+        end
+    end)
+    Notify("SYSTEM", "Ready")
+end)
 
 --// ============================================================================
 --// PHASE 13: CHARACTER RESPAWN HANDLER
@@ -1611,10 +1573,3 @@ pcall(function()
         end
     end)
 end)
-
---// ============================================================================
---// FINAL BOOT MESSAGE
---// ============================================================================
-
-print("[SYSTEM] Ready")
-Notify("SYSTEM", "Ready")
