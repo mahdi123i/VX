@@ -235,6 +235,19 @@ end
 
 local lastOwnerPosition = nil  -- For performance: track last position to avoid unnecessary updates
 
+local function SetIntangible(state)
+    if LocalPlayer.Character then
+        for _, part in pairs(LocalPlayer.Character:GetChildren()) do
+            if part:IsA("BasePart") then
+                part.CanCollide = not state
+            end
+        end
+        if LocalPlayer.Character:FindFirstChild("Humanoid") then
+            LocalPlayer.Character.Humanoid.PlatformStand = state
+        end
+    end
+end
+
 local function StandBehindOwner()
     local ownerPlayer = Services.Players:FindFirstChild(getgenv().Owner)
     if ownerPlayer and ownerPlayer.Character and ownerPlayer.Character:FindFirstChild("HumanoidRootPart") and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
@@ -245,13 +258,19 @@ local function StandBehindOwner()
         if not lastOwnerPosition or (ownerHRP.Position - lastOwnerPosition).Magnitude > 1 then
             lastOwnerPosition = ownerHRP.Position
             local direction = ownerHRP.CFrame.LookVector * -5
-            local targetCFrame = ownerHRP.CFrame + direction
-            targetCFrame = CFrame.new(targetCFrame.Position, ownerHRP.Position)
+            local targetPos = (ownerHRP.CFrame + direction).Position
 
-            -- Smooth but faster movement using TweenService (reduced time from 0.5 to 0.2 for speed)
-            local tweenInfo = TweenInfo.new(0.2, Enum.EasingStyle.Linear, Enum.EasingDirection.Out)
-            local tween = Services.TweenService:Create(standHRP, tweenInfo, {CFrame = targetCFrame})
-            tween:Play()
+            -- Flying movement using BodyVelocity (undetected flying)
+            local bodyVel = standHRP:FindFirstChild("BodyVelocity") or Instance.new("BodyVelocity")
+            bodyVel.Parent = standHRP
+            bodyVel.MaxForce = Vector3.new(4000, 4000, 4000)
+            bodyVel.Velocity = (targetPos - standHRP.Position).Unit * 50  -- Adjust speed as needed
+
+            -- Orientation using BodyGyro
+            local bodyGyro = standHRP:FindFirstChild("BodyGyro") or Instance.new("BodyGyro")
+            bodyGyro.Parent = standHRP
+            bodyGyro.MaxTorque = Vector3.new(4000, 4000, 4000)
+            bodyGyro.CFrame = CFrame.new(standHRP.Position, ownerHRP.Position)
         end
     end
 end
@@ -259,12 +278,20 @@ end
 local function MoveToSafe()
     if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
         local standHRP = LocalPlayer.Character.HumanoidRootPart
-        local targetCFrame = CFrame.new(SafePosition)
+        local targetPos = SafePosition
 
-        -- Smooth movement to safe position
-        local tweenInfo = TweenInfo.new(1, Enum.EasingStyle.Linear, Enum.EasingDirection.Out)
-        local tween = Services.TweenService:Create(standHRP, tweenInfo, {CFrame = targetCFrame})
-        tween:Play()
+        -- Flying movement to safe position using BodyVelocity
+        local bodyVel = standHRP:FindFirstChild("BodyVelocity") or Instance.new("BodyVelocity")
+        bodyVel.Parent = standHRP
+        bodyVel.MaxForce = Vector3.new(4000, 4000, 4000)
+        bodyVel.Velocity = (targetPos - standHRP.Position).Unit * 50
+
+        -- Orientation (optional, can remove if not needed)
+        local bodyGyro = standHRP:FindFirstChild("BodyGyro") or Instance.new("BodyGyro")
+        bodyGyro.Parent = standHRP
+        bodyGyro.MaxTorque = Vector3.new(4000, 4000, 4000)
+        bodyGyro.CFrame = CFrame.new(standHRP.Position, targetPos)
+
         warn("Moving to safe position.")
     end
 end
@@ -274,9 +301,19 @@ local function ExecuteCommand(message)
     if cmd == ".s" then
         Config.StandMode = true
         lastOwnerPosition = nil  -- Reset for fresh tracking
-        warn("Stand Mode Activated: Following Owner.")
+        SetIntangible(true)  -- Make intangible and enable flying
+        warn("Stand Mode Activated: Following Owner (Flying & Intangible).")
     elseif cmd == ".uns" then
         Config.StandMode = false
+        SetIntangible(false)  -- Restore collisions
+        -- Remove BodyVelocity and BodyGyro
+        if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+            local hrp = LocalPlayer.Character.HumanoidRootPart
+            local bv = hrp:FindFirstChild("BodyVelocity")
+            if bv then bv:Destroy() end
+            local bg = hrp:FindFirstChild("BodyGyro")
+            if bg then bg:Destroy() end
+        end
         MoveToSafe()
         warn("Stand Mode Deactivated: Moving to safe position.")
     end
