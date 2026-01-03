@@ -261,22 +261,6 @@ local function SetIntangible(state)
             if animator then
                 animator:Destroy()
             end
-            -- Add/Remove BodyVelocity for floating to prevent falling and dying
-            local hrp = LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-            if hrp then
-                local bv = hrp:FindFirstChild("BodyVelocity")
-                if state then
-                    if not bv then
-                        bv = Instance.new("BodyVelocity")
-                        bv.Name = "BodyVelocity"
-                        bv.Parent = hrp
-                        bv.MaxForce = Vector3.new(0, 4000, 0)  -- Only upward force
-                        bv.Velocity = Vector3.new(0, 10, 0)  -- Gentle upward velocity to stay floating
-                    end
-                else
-                    if bv then bv:Destroy() end
-                end
-            end
         end
     end
 end
@@ -314,8 +298,8 @@ local function ExecuteCommand(message)
     if cmd == ".s" then
         Config.StandMode = true
         lastOwnerPosition = nil  -- Reset for fresh tracking
-        SetIntangible(true)  -- Make intangible, freeze animations, transparent, floating
-        warn("Stand Mode Activated: Following Owner (Frozen, No Animations, Transparent, Floating).")
+        SetIntangible(true)  -- Make intangible, freeze animations, transparent
+        warn("Stand Mode Activated: Following Owner (Frozen, No Animations, Transparent).")
     elseif cmd == ".uns" then
         Config.StandMode = false
         MoveToSafe()
@@ -394,12 +378,11 @@ Services.RunService.Heartbeat:Connect(function()
         if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
             LocalPlayer.Character.Humanoid.Sit = false
         end
-        -- Stomp/Reset System: Reset by setting health to 0 if low (before dying)
+        -- Keep stand invincible in stand mode (undetected health regen)
         if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
             local humanoid = LocalPlayer.Character.Humanoid
-            if humanoid.Health <= 5 then  -- Lower threshold for earlier reset
-                warn("Stand health low, resetting...")
-                humanoid.Health = 0  -- Force death and respawn
+            if humanoid.Health < humanoid.MaxHealth then
+                humanoid.Health = humanoid.MaxHealth  -- Regenerate health instantly to prevent death
             end
         end
         -- Sync jumping with owner (without animation)
@@ -409,6 +392,15 @@ Services.RunService.Heartbeat:Connect(function()
             local standHumanoid = LocalPlayer.Character.Humanoid
             if ownerHumanoid:GetState() == Enum.HumanoidStateType.Jumping and standHumanoid:GetState() ~= Enum.HumanoidStateType.Jumping then
                 standHumanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+            end
+        end
+    else
+        -- Stomp/Reset System: Only when not in stand mode
+        if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
+            local humanoid = LocalPlayer.Character.Humanoid
+            if humanoid.Health <= 5 then  -- Lower threshold for earlier reset
+                warn("Health low, resetting...")
+                humanoid.Health = 0  -- Force death and respawn
             end
         end
     end
