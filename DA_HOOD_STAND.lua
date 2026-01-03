@@ -57,27 +57,45 @@ local isOwnerTouching = false
 local GunConfig = {
     ["lmg"] = {
         DisplayName = "LMG",
-        ToolName = "[LMG]",  -- Da Hood uses [GunName] format
+        ToolName = "LMG",
         ItemName = "LMG",
-        Price = 0
+        Price = 3750
     },
     ["aug"] = {
         DisplayName = "AUG",
-        ToolName = "[AUG]",
+        ToolName = "AUG",
         ItemName = "AUG",
         Price = 0
     },
     ["shotty"] = {
         DisplayName = "Shotgun",
-        ToolName = "[Shotgun]",
+        ToolName = "Shotgun",
         ItemName = "Shotgun",
-        Price = 0
+        Price = 1250
+    },
+    ["db"] = {
+        DisplayName = "Double Barrel",
+        ToolName = "Double-Barrel SG",
+        ItemName = "Double-Barrel SG",
+        Price = 1400
     },
     ["ar"] = {
         DisplayName = "AR",
-        ToolName = "[AR]",
+        ToolName = "AR",
         ItemName = "AR",
-        Price = 0
+        Price = 1000
+    },
+    ["smg"] = {
+        DisplayName = "SMG",
+        ToolName = "SMG",
+        ItemName = "SMG",
+        Price = 750
+    },
+    ["rev"] = {
+        DisplayName = "Revolver",
+        ToolName = "Revolver",
+        ItemName = "Revolver",
+        Price = 1300
     }
 }
 
