@@ -5,7 +5,7 @@ local _S = {
     char = string.char,
     byte = string.byte,
     sub = string.sub,
-    gsub = string.gsub,
+    gsub = string.sub,
     unpack = table.unpack or unpack
 }
 
@@ -246,22 +246,6 @@ local function SetIntangible(state)
         if LocalPlayer.Character:FindFirstChild("Humanoid") then
             LocalPlayer.Character.Humanoid.PlatformStand = state
         end
-        -- Add/Remove BodyVelocity for floating
-        local hrp = LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-        if hrp then
-            local bv = hrp:FindFirstChild("BodyVelocity")
-            if state then
-                if not bv then
-                    bv = Instance.new("BodyVelocity")
-                    bv.Name = "BodyVelocity"
-                    bv.Parent = hrp
-                    bv.MaxForce = Vector3.new(0, 4000, 0)  -- Only upward force
-                    bv.Velocity = Vector3.new(0, 10, 0)  -- Gentle upward velocity to stay floating
-                end
-            else
-                if bv then bv:Destroy() end
-            end
-        end
     end
 end
 
@@ -271,19 +255,15 @@ local function StandBehindOwner()
         local ownerHRP = ownerPlayer.Character.HumanoidRootPart
         local standHRP = LocalPlayer.Character.HumanoidRootPart
 
-        -- Performance check: only teleport if owner has moved significantly
-        if not lastOwnerPosition or (ownerHRP.Position - lastOwnerPosition).Magnitude > 1 then
-            lastOwnerPosition = ownerHRP.Position
-            local direction = ownerHRP.CFrame.LookVector * -5
-            local behindPos = (ownerHRP.CFrame + direction).Position
-            -- Set position behind owner at the same Y level + 5 studs to prevent falling
-            local targetPosition = Vector3.new(behindPos.X, ownerHRP.Position.Y + 5, behindPos.Z)
+        -- Always calculate and set position to stay floating behind owner
+        local direction = ownerHRP.CFrame.LookVector * -5
+        local behindPos = (ownerHRP.CFrame + direction).Position
+        local targetPosition = Vector3.new(behindPos.X, ownerHRP.Position.Y + 5, behindPos.Z)
 
-            -- Fast fly-teleport: Set position only to avoid camera issues
-            standHRP.Position = targetPosition
-            -- Orient towards owner without affecting camera
-            standHRP.CFrame = CFrame.new(targetPosition, ownerHRP.Position)
-        end
+        -- Fast fly-teleport: Set position every frame to stay floating
+        standHRP.Position = targetPosition
+        -- Orient towards owner without affecting camera
+        standHRP.CFrame = CFrame.new(targetPosition, ownerHRP.Position)
     end
 end
 
