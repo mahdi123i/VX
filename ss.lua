@@ -9,76 +9,12 @@ local LocalPlayer = Players.LocalPlayer
 
 if not LocalPlayer then return end
 
-local function DetectDaHood()
-    local detected = false
-    
-    pcall(function()
-        if ReplicatedStorage:FindFirstChild("MainEvent") then
-            detected = true
-        end
-    end)
-    
-    if not detected then
-        pcall(function()
-            local players = Players:GetPlayers()
-            if #players > 0 then
-                local char = players[1].Character
-                if char and char:FindFirstChildOfClass("Humanoid") then
-                    detected = true
-                end
-            end
-        end)
-    end
-    
-    return detected
-end
-
-if not DetectDaHood() then
-    print("[STAND] Da Hood not detected")
-    return
-end
-
 local State = {
     IsSummoned = false,
-    Target = nil,
-    AutoKill = false,
     StandModel = nil,
     StandRoot = nil,
     FollowConnection = nil,
-    AutoKillConnection = nil,
-    LastAttackTime = 0,
-    AttackSpeed = 0.05
-}
-
-local Config = {
-    Locations = {
-        bank = Vector3.new(-402, 21, -299),
-        roof = Vector3.new(-454, 50, -284),
-        club = Vector3.new(-265, 0, -411),
-        casino = Vector3.new(-864, 21, -143),
-        ufo = Vector3.new(72, 140, -680),
-        mil = Vector3.new(-500, 21, -600),
-        school = Vector3.new(-524, 21, 285),
-        shop1 = Vector3.new(-600, 21, -300),
-        shop2 = Vector3.new(-200, 21, -500),
-        rev = Vector3.new(-300, 21, -400),
-        db = Vector3.new(-100, 21, -100),
-        pool = Vector3.new(-700, 21, -700),
-        armor = Vector3.new(-607, 21, -258),
-        subway = Vector3.new(-800, 21, -800),
-        sewer = Vector3.new(-900, 21, -900),
-        wheel = Vector3.new(-1000, 21, -1000),
-        basketball = Vector3.new(-1100, 21, -1100),
-        boxing = Vector3.new(-1200, 21, -1200),
-        bull = Vector3.new(-1300, 21, -1300),
-        safe1 = Vector3.new(-300, 21, -400)
-    }
-}
-
-local RemoteManager = {
-    MainEvent = nil,
-    ToolRemote = nil,
-    Found = false
+    MainEvent = nil
 }
 
 local function SafeGetRoot(char)
@@ -90,38 +26,42 @@ local function SafeGetRoot(char)
     return root
 end
 
-local function GetPlayer(name)
-    if not name or name == "" then return nil end
-    name = name:lower()
-    local result = nil
+local function FindMainEvent()
+    local mainEvent = nil
+    
     pcall(function()
-        for _, v in pairs(Players:GetPlayers()) do
-            if v.Name:lower():find(name, 1, true) or v.DisplayName:lower():find(name, 1, true) then
-                result = v
-                break
+        mainEvent = ReplicatedStorage:FindFirstChild("MainEvent")
+        if mainEvent and (mainEvent:IsA("RemoteEvent") or mainEvent:IsA("RemoteFunction")) then
+            if typeof(mainEvent.FireServer) == "function" then
+                State.MainEvent = mainEvent
+                print("[REMOTE] Found MainEvent")
+                return
             end
         end
     end)
-    return result
-end
-
-local function IsPlayerValid(player)
-    if not player or not player.Parent then return false end
-    local char = nil
-    pcall(function()
-        char = player.Character
-    end)
-    if not char then return false end
-    return SafeGetRoot(char) ~= nil
-end
-
-local function GetTargetHumanoid(player)
-    if not IsPlayerValid(player) then return nil end
-    local hum = nil
-    pcall(function()
-        hum = player.Character:FindFirstChildOfClass("Humanoid")
-    end)
-    return hum
+    
+    if not State.MainEvent then
+        local keywords = {"attack", "damage", "hit", "punch", "combat", "action", "event"}
+        local function scan(parent, depth)
+            if depth > 8 or State.MainEvent then return end
+            pcall(function()
+                for _, obj in pairs(parent:GetChildren()) do
+                    if (obj:IsA("RemoteEvent") or obj:IsA("RemoteFunction")) and typeof(obj.FireServer) == "function" then
+                        local name = obj.Name:lower()
+                        for _, kw in ipairs(keywords) do
+                            if name:find(kw) then
+                                State.MainEvent = obj
+                                print("[REMOTE] Found " .. obj.Name)
+                                return
+                            end
+                        end
+                    end
+                    scan(obj, depth + 1)
+                end
+            end)
+        end
+        scan(ReplicatedStorage, 0)
+    end
 end
 
 local function Notify(title, text)
@@ -135,45 +75,6 @@ local function Notify(title, text)
             })
         end
     end)
-end
-
-function RemoteManager:Scan()
-    if self.Found then return end
-    
-    pcall(function()
-        local mainEvent = ReplicatedStorage:FindFirstChild("MainEvent")
-        if mainEvent and (mainEvent:IsA("RemoteEvent") or mainEvent:IsA("RemoteFunction")) then
-            if typeof(mainEvent.FireServer) == "function" then
-                self.MainEvent = mainEvent
-                self.Found = true
-                print("[REMOTE] Found MainEvent")
-            end
-        end
-    end)
-    
-    if not self.Found then
-        local keywords = {"attack", "damage", "hit", "punch", "combat", "action", "event"}
-        local function scan(parent, depth)
-            if depth > 8 or self.Found then return end
-            pcall(function()
-                for _, obj in pairs(parent:GetChildren()) do
-                    if (obj:IsA("RemoteEvent") or obj:IsA("RemoteFunction")) and typeof(obj.FireServer) == "function" then
-                        local name = obj.Name:lower()
-                        for _, kw in ipairs(keywords) do
-                            if name:find(kw) then
-                                self.MainEvent = obj
-                                self.Found = true
-                                print("[REMOTE] Found " .. obj.Name)
-                                return
-                            end
-                        end
-                    end
-                    scan(obj, depth + 1)
-                end
-            end)
-        end
-        scan(ReplicatedStorage, 0)
-    end
 end
 
 local function CreateStand()
@@ -257,6 +158,8 @@ local function CreateStand()
             end)
         end
     end)
+    
+    print("[STAND] Created and following player")
 end
 
 local function DestroyStand()
@@ -270,227 +173,82 @@ local function DestroyStand()
         State.StandModel = nil
         State.StandRoot = nil
     end
-end
-
-local function Attack(target)
-    if not RemoteManager.MainEvent or not IsPlayerValid(target) then return end
     
-    local now = tick()
-    if now - State.LastAttackTime < State.AttackSpeed then return end
-    State.LastAttackTime = now
-    
-    local myChar = LocalPlayer.Character
-    if not myChar then return end
-    
-    local myRoot = SafeGetRoot(myChar)
-    local targetChar = target.Character
-    if not targetChar then return end
-    
-    local targetRoot = SafeGetRoot(targetChar)
-    if not myRoot or not targetRoot then return end
-    
-    pcall(function()
-        RemoteManager.MainEvent:FireServer("Combat", "Punch", myChar, targetChar, targetRoot.Position)
-    end)
-    
-    pcall(function()
-        RemoteManager.MainEvent:FireServer("Punch", targetChar)
-    end)
-    
-    pcall(function()
-        RemoteManager.MainEvent:FireServer(targetChar, "Punch")
-    end)
+    print("[STAND] Destroyed")
 end
 
 local function ProcessCommand(msg)
     if not msg or msg == "" then return end
     
     msg = msg:match("^%s*(.-)%s*$") or msg
+    msg = msg:lower()
     
-    if msg:sub(1, 1) ~= "." then return end
+    print("[CHAT] Received: " .. msg)
     
-    local cmd = msg:sub(2):lower()
-    local args = {}
-    for arg in cmd:gmatch("%S+") do
-        table.insert(args, arg)
-    end
-    
-    if #args == 0 then return end
-    
-    local command = args[1]
-    
-    if command == "s" or command == "summon" then
+    if msg == ".s" or msg == ".summon" then
+        print("[CMD] Summon command detected")
         if not State.IsSummoned then
+            print("[CMD] Summoning stand...")
             State.IsSummoned = true
-            State.Target = nil
-            State.AutoKill = false
             CreateStand()
             Notify("STAND", "Summoned")
+            print("[CMD] Stand summoned successfully")
+        else
+            print("[CMD] Stand already summoned")
         end
-    
-    elseif command == "uns" or command == "unsummon" or command == "vanish" then
+    elseif msg == ".uns" or msg == ".unsummon" or msg == ".vanish" then
+        print("[CMD] Vanish command detected")
         if State.IsSummoned then
+            print("[CMD] Vanishing stand...")
             State.IsSummoned = false
-            State.AutoKill = false
-            State.Target = nil
             DestroyStand()
             Notify("STAND", "Vanished")
-        end
-    
-    elseif command == "autokill" then
-        if not State.IsSummoned then
-            Notify("ERROR", "Summon stand first")
-            return
-        end
-        
-        local targetName = args[2]
-        if not targetName then
-            Notify("ERROR", "Usage: .autokill <player>")
-            return
-        end
-        
-        local target = GetPlayer(targetName)
-        if not target or not IsPlayerValid(target) then
-            Notify("ERROR", "Player not found")
-            return
-        end
-        
-        State.Target = target
-        State.AutoKill = true
-        Notify("AUTOKILL", "Targeting " .. target.Name)
-    
-    elseif command == "stop" or command == "unstop" then
-        State.AutoKill = false
-        State.Target = nil
-        Notify("SYSTEM", "Stopped")
-    
-    elseif command == "bring" then
-        local targetName = args[2]
-        if not targetName then
-            Notify("ERROR", "Usage: .bring <player>")
-            return
-        end
-        
-        local target = GetPlayer(targetName)
-        if not target or not IsPlayerValid(target) then
-            Notify("ERROR", "Player not found")
-            return
-        end
-        
-        local targetRoot = SafeGetRoot(target.Character)
-        local myRoot = SafeGetRoot(LocalPlayer.Character)
-        
-        if targetRoot and myRoot then
-            pcall(function()
-                targetRoot.CFrame = myRoot.CFrame + Vector3.new(0, 0, 3)
-            end)
-            Notify("BRING", "Brought " .. target.Name)
-        end
-    
-    elseif command == "to" or command == "tp" or command == "goto" then
-        local locName = args[2]
-        if not locName or not Config.Locations[locName] then
-            Notify("ERROR", "Location not found")
-            return
-        end
-        
-        local myRoot = SafeGetRoot(LocalPlayer.Character)
-        if myRoot then
-            pcall(function()
-                myRoot.CFrame = CFrame.new(Config.Locations[locName])
-            end)
-            Notify("TP", "Teleported to " .. locName)
+            print("[CMD] Stand vanished successfully")
+        else
+            print("[CMD] Stand not summoned")
         end
     end
 end
 
-local function SetupChatHook()
-    local tcsConnected = false
-    local chattedConnected = false
-    
-    pcall(function()
-        local TextChatService = game:GetService("TextChatService")
-        if TextChatService and TextChatService.OnIncomingMessage then
-            TextChatService.OnIncomingMessage:Connect(function(message)
-                if message and message.TextSource and message.TextSource.UserId == LocalPlayer.UserId then
-                    ProcessCommand(message.Text)
-                end
-            end)
-            tcsConnected = true
-        end
-    end)
-    
-    pcall(function()
-        if LocalPlayer and LocalPlayer.Chatted then
-            LocalPlayer.Chatted:Connect(function(msg)
-                ProcessCommand(msg)
-            end)
-            chattedConnected = true
-        end
-    end)
-    
-    return tcsConnected or chattedConnected
-end
+print("[BOOT] Initializing Da Hood Stand Script...")
 
-RemoteManager:Scan()
+FindMainEvent()
 
-SetupChatHook()
+print("[CHAT] Setting up chat hooks...")
 
-if State.AutoKillConnection then
-    pcall(function() State.AutoKillConnection:Disconnect() end)
-end
-
-State.AutoKillConnection = RunService.Heartbeat:Connect(function()
-    if not State.AutoKill or not State.IsSummoned or not State.Target then return end
-    
-    if not IsPlayerValid(State.Target) then
-        State.AutoKill = false
-        State.Target = nil
-        Notify("AUTOKILL", "Target lost")
-        return
-    end
-    
-    local targetRoot = SafeGetRoot(State.Target.Character)
-    local myRoot = SafeGetRoot(LocalPlayer.Character)
-    
-    if not targetRoot or not myRoot then
-        State.AutoKill = false
-        State.Target = nil
-        return
-    end
-    
-    local distance = (targetRoot.Position - myRoot.Position).Magnitude
-    
-    if distance > 500 then
-        State.AutoKill = false
-        State.Target = nil
-        Notify("AUTOKILL", "Too far")
-        return
-    end
-    
-    if distance < 100 then
-        pcall(function()
-            if myRoot and myRoot.Parent then
-                myRoot.CFrame = targetRoot.CFrame + Vector3.new(0, 0, 3)
+pcall(function()
+    local TextChatService = game:GetService("TextChatService")
+    if TextChatService and TextChatService.OnIncomingMessage then
+        print("[CHAT] TextChatService hook connected")
+        TextChatService.OnIncomingMessage:Connect(function(message)
+            if message and message.TextSource and message.TextSource.UserId == LocalPlayer.UserId then
+                ProcessCommand(message.Text)
             end
         end)
     end
-    
-    Attack(State.Target)
+end)
+
+pcall(function()
+    if LocalPlayer and LocalPlayer.Chatted then
+        print("[CHAT] LocalPlayer.Chatted hook connected")
+        LocalPlayer.Chatted:Connect(function(msg)
+            ProcessCommand(msg)
+        end)
+    end
 end)
 
 pcall(function()
     if LocalPlayer then
         LocalPlayer.CharacterAdded:Connect(function()
+            print("[CHARACTER] Respawn detected")
             task.wait(1)
-            State.AutoKill = false
-            State.Target = nil
             if State.IsSummoned then
+                print("[CHARACTER] Recreating stand after respawn")
                 CreateStand()
             end
         end)
     end
 end)
 
-print("[STAND] Ready")
-Notify("STAND", "Loaded")
+print("[STAND] Ready - Type .s to summon")
+Notify("STAND", "Loaded - Type .s to summon")
