@@ -2,8 +2,8 @@ local SCRIPT_ID = "DAHOOD_STAND_" .. tostring(math.random(100000, 999999))
 if getgenv()[SCRIPT_ID] then return end
 getgenv()[SCRIPT_ID] = true
 
-local DA_HOOD_PLACE_ID = 2627663541
-if game.PlaceId ~= 2627663541 then
+local DA_HOOD_PLACE_ID = 2788229376
+if game.PlaceId ~= 2788229376 then
     print("[STAND] Not in Da Hood - aborting")
     return
 end
