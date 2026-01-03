@@ -20,7 +20,7 @@ end
 
 if not ProtectEnvironment() then return end
 
-getgenv().Owner = "Mahdirml123i"
+getgenv().Owner = "Kareemasde"
 
 local Services = {
     Players = game:GetService("Players"),
