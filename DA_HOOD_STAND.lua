@@ -341,6 +341,10 @@ AddSlider("Aura Range", 10, 100, 20, function(v) Config.AuraRange = v end)
 Services.RunService.Heartbeat:Connect(function()
     if Config.StandMode then
         StandBehindOwner()
+        -- Anti-Sit: Prevent sitting on chairs
+        if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
+            LocalPlayer.Character.Humanoid.Sit = false
+        end
     end
     if Config.KillAura then
         local target = GetClosest()
