@@ -261,6 +261,22 @@ local function SetIntangible(state)
             if animator then
                 animator:Destroy()
             end
+            -- Add/Remove BodyVelocity for floating to prevent falling and dying
+            local hrp = LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+            if hrp then
+                local bv = hrp:FindFirstChild("BodyVelocity")
+                if state then
+                    if not bv then
+                        bv = Instance.new("BodyVelocity")
+                        bv.Name = "BodyVelocity"
+                        bv.Parent = hrp
+                        bv.MaxForce = Vector3.new(0, 4000, 0)  -- Only upward force
+                        bv.Velocity = Vector3.new(0, 10, 0)  -- Gentle upward velocity to stay floating
+                    end
+                else
+                    if bv then bv:Destroy() end
+                end
+            end
         end
     end
 end
@@ -298,8 +314,8 @@ local function ExecuteCommand(message)
     if cmd == ".s" then
         Config.StandMode = true
         lastOwnerPosition = nil  -- Reset for fresh tracking
-        SetIntangible(true)  -- Make intangible, freeze animations, transparent
-        warn("Stand Mode Activated: Following Owner (Frozen, No Animations, Transparent).")
+        SetIntangible(true)  -- Make intangible, freeze animations, transparent, floating
+        warn("Stand Mode Activated: Following Owner (Frozen, No Animations, Transparent, Floating).")
     elseif cmd == ".uns" then
         Config.StandMode = false
         MoveToSafe()
