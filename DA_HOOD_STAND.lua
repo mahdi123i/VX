@@ -234,6 +234,7 @@ local function AddSlider(text, min, max, default, callback)
 end
 
 local lastOwnerPosition = nil  -- For performance: track last position to avoid unnecessary updates
+local targetPosition = nil  -- Target position for flying
 
 local function SetIntangible(state)
     if LocalPlayer.Character then
@@ -250,50 +251,21 @@ end
 
 local function StandBehindOwner()
     local ownerPlayer = Services.Players:FindFirstChild(getgenv().Owner)
-    if ownerPlayer and ownerPlayer.Character and ownerPlayer.Character:FindFirstChild("HumanoidRootPart") and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+    if ownerPlayer and ownerPlayer.Character and ownerPlayer.Character:FindFirstChild("HumanoidRootPart") then
         local ownerHRP = ownerPlayer.Character.HumanoidRootPart
-        local standHRP = LocalPlayer.Character.HumanoidRootPart
 
-        -- Performance check: only move if owner has moved significantly
+        -- Performance check: only update target if owner has moved significantly
         if not lastOwnerPosition or (ownerHRP.Position - lastOwnerPosition).Magnitude > 1 then
             lastOwnerPosition = ownerHRP.Position
             local direction = ownerHRP.CFrame.LookVector * -5
-            local targetPos = (ownerHRP.CFrame + direction).Position
-
-            -- Flying movement using BodyVelocity (undetected flying)
-            local bodyVel = standHRP:FindFirstChild("BodyVelocity") or Instance.new("BodyVelocity")
-            bodyVel.Parent = standHRP
-            bodyVel.MaxForce = Vector3.new(4000, 4000, 4000)
-            bodyVel.Velocity = (targetPos - standHRP.Position).Unit * 50  -- Adjust speed as needed
-
-            -- Orientation using BodyGyro
-            local bodyGyro = standHRP:FindFirstChild("BodyGyro") or Instance.new("BodyGyro")
-            bodyGyro.Parent = standHRP
-            bodyGyro.MaxTorque = Vector3.new(4000, 4000, 4000)
-            bodyGyro.CFrame = CFrame.new(standHRP.Position, ownerHRP.Position)
+            targetPosition = (ownerHRP.CFrame + direction).Position
         end
     end
 end
 
 local function MoveToSafe()
-    if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
-        local standHRP = LocalPlayer.Character.HumanoidRootPart
-        local targetPos = SafePosition
-
-        -- Flying movement to safe position using BodyVelocity
-        local bodyVel = standHRP:FindFirstChild("BodyVelocity") or Instance.new("BodyVelocity")
-        bodyVel.Parent = standHRP
-        bodyVel.MaxForce = Vector3.new(4000, 4000, 4000)
-        bodyVel.Velocity = (targetPos - standHRP.Position).Unit * 50
-
-        -- Orientation (optional, can remove if not needed)
-        local bodyGyro = standHRP:FindFirstChild("BodyGyro") or Instance.new("BodyGyro")
-        bodyGyro.Parent = standHRP
-        bodyGyro.MaxTorque = Vector3.new(4000, 4000, 4000)
-        bodyGyro.CFrame = CFrame.new(standHRP.Position, targetPos)
-
-        warn("Moving to safe position.")
-    end
+    targetPosition = SafePosition
+    warn("Moving to safe position.")
 end
 
 local function ExecuteCommand(message)
@@ -301,19 +273,13 @@ local function ExecuteCommand(message)
     if cmd == ".s" then
         Config.StandMode = true
         lastOwnerPosition = nil  -- Reset for fresh tracking
+        targetPosition = nil
         SetIntangible(true)  -- Make intangible and enable flying
         warn("Stand Mode Activated: Following Owner (Flying & Intangible).")
     elseif cmd == ".uns" then
         Config.StandMode = false
         SetIntangible(false)  -- Restore collisions
-        -- Remove BodyVelocity and BodyGyro
-        if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
-            local hrp = LocalPlayer.Character.HumanoidRootPart
-            local bv = hrp:FindFirstChild("BodyVelocity")
-            if bv then bv:Destroy() end
-            local bg = hrp:FindFirstChild("BodyGyro")
-            if bg then bg:Destroy() end
-        end
+        targetPosition = nil
         MoveToSafe()
         warn("Stand Mode Deactivated: Moving to safe position.")
     end
@@ -348,9 +314,33 @@ end
 AddToggle("Kill Aura", function(v) Config.KillAura = v end)
 AddSlider("Aura Range", 10, 100, 20, function(v) Config.AuraRange = v end)
 
-Services.RunService.Heartbeat:Connect(function()
+Services.RunService.Heartbeat:Connect(function(deltaTime)
     if Config.StandMode then
         StandBehindOwner()
+    end
+    if targetPosition and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+        local hrp = LocalPlayer.Character.HumanoidRootPart
+        local currentPos = hrp.Position
+        local direction = (targetPosition - currentPos).Unit
+        local distance = (targetPosition - currentPos).Magnitude
+
+        -- Move towards target at a controlled speed (undetected gradual movement)
+        local speed = 50  -- studs per second, adjust as needed
+        local moveAmount = math.min(speed * deltaTime, distance)
+        hrp.Position = currentPos + direction * moveAmount
+
+        -- Orient towards the owner or target
+        local ownerPlayer = Services.Players:FindFirstChild(getgenv().Owner)
+        if ownerPlayer and ownerPlayer.Character and ownerPlayer.Character:FindFirstChild("HumanoidRootPart") then
+            hrp.CFrame = CFrame.new(hrp.Position, ownerPlayer.Character.HumanoidRootPart.Position)
+        else
+            hrp.CFrame = CFrame.new(hrp.Position, targetPosition)
+        end
+
+        -- Stop if close enough
+        if distance < 1 then
+            targetPosition = nil
+        end
     end
     if Config.KillAura then
         local target = GetClosest()
