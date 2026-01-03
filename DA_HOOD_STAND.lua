@@ -259,11 +259,12 @@ local function StandBehindOwner()
         if not lastOwnerPosition or (ownerHRP.Position - lastOwnerPosition).Magnitude > 1 then
             lastOwnerPosition = ownerHRP.Position
             local direction = ownerHRP.CFrame.LookVector * -5
-            local targetCFrame = ownerHRP.CFrame + direction
-            targetCFrame = CFrame.new(targetCFrame.Position + Vector3.new(0, 5, 0), ownerHRP.Position)  -- Slight height for "flying" effect
+            local targetPosition = (ownerHRP.CFrame + direction).Position + Vector3.new(0, 5, 0)  -- Slight height for "flying" effect
 
-            -- Fast fly-teleport: Instant CFrame set for speed and minimal detection risk
-            standHRP.CFrame = targetCFrame
+            -- Fast fly-teleport: Set position only to avoid camera issues
+            standHRP.Position = targetPosition
+            -- Orient towards owner without affecting camera
+            standHRP.CFrame = CFrame.new(targetPosition, ownerHRP.Position)
         end
     end
 end
@@ -271,10 +272,10 @@ end
 local function MoveToSafe()
     if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
         local standHRP = LocalPlayer.Character.HumanoidRootPart
-        local targetCFrame = CFrame.new(SafePosition + Vector3.new(0, 5, 0))  -- Slight height
+        local targetPosition = SafePosition + Vector3.new(0, 5, 0)  -- Slight height
 
         -- Fast teleport to safe position
-        standHRP.CFrame = targetCFrame
+        standHRP.Position = targetPosition
         warn("Moving to safe position.")
     end
 end
@@ -293,7 +294,12 @@ local function ExecuteCommand(message)
         warn("Stand Mode Deactivated: Moving to safe position.")
     elseif cmd == "rj!" then
         warn("Rejoining the same server...")
-        Services.TeleportService:TeleportToPlaceInstance(game.PlaceId, game.JobId)
+        local success, err = pcall(function()
+            Services.TeleportService:TeleportToPlaceInstance(game.PlaceId, game.JobId)
+        end)
+        if not success then
+            warn("Failed to rejoin: " .. err)
+        end
     end
 end
 
@@ -306,6 +312,14 @@ if ownerPlayer then
 else
     warn("Owner not found in game.")
 end
+
+-- Ensure script runs after character loads
+LocalPlayer.CharacterAdded:Connect(function(character)
+    wait(1)  -- Wait for character to fully load
+    if Config.StandMode then
+        SetIntangible(true)
+    end
+end)
 
 local function GetClosest()
     local target = nil
