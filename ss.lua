@@ -1,126 +1,136 @@
-local SCRIPT_ID = "DAHOOD_STAND_" .. tostring(math.random(100000, 999999))
-if getgenv()[SCRIPT_ID] then return end
-getgenv()[SCRIPT_ID] = true
+--[[
+    سكربت Stand المتكامل لـ Da Hood
+    الوظائف:
+    1. إعادة ضبط واجهة الدردشة (Chat GUI) لضمان ظهورها.
+    2. استدعاء Stand (نموذج بسيط) خلف اللاعب عند كتابة ".s" في الدردشة.
+    3. إزالة الـ Stand عند كتابة ".s" مرة أخرى.
+--]]
 
 local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
-local TextChatService = game:GetService("TextChatService")
-
 local LocalPlayer = Players.LocalPlayer
-if not LocalPlayer then return end
+local StarterGui = game:GetService("StarterGui")
+local TextChatService = game:GetService("TextChatService")
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
 
-local State = {
-Summoned = false,
-Model = nil,
-Root = nil,
-FollowConnection = nil
-}
+local COMMAND = ".s"
+local STAND_OFFSET = 5 -- المسافة التي سيظهر فيها الـ Stand خلف اللاعب
 
-local function GetRoot()
-local char = LocalPlayer.Character
-if not char then return nil end
-return char:FindFirstChild("HumanoidRootPart")
+local activeStand = nil
+
+-- ====================================================================
+-- 1. وظيفة إعادة ضبط الدردشة (لحل مشكلة Da Hood)
+-- ====================================================================
+
+local function restoreChatGUI()
+    -- إعادة تفعيل واجهة الدردشة الأساسية
+    StarterGui:SetCoreGuiEnabled(Enum.CoreGuiType.Chat, true)
+    
+    -- محاولة إعادة ضبط موضع الدردشة باستخدام TextChatService
+    if TextChatService then
+        TextChatService.ChatInputBarConfiguration.TargetTextChannel = TextChatService.TextChannels.RBXGeneral
+    end
+    
+    -- يمكن إضافة المزيد من الأوامر هنا إذا كانت Da Hood تستخدم طريقة معينة لإخفاء الدردشة
+    -- على سبيل المثال، إذا كانت تخفيها عبر LocalScript، فإن تشغيل هذا السكربت قد يتجاوز ذلك.
+    print("Chat GUI should be restored.")
 end
 
-local function CreateStand()
-if State.Model then
-pcall(function() State.Model:Destroy() end)
+-- ====================================================================
+-- 2. وظيفة إنشاء Stand (نموذج بسيط)
+-- ====================================================================
+
+local function createStandModel()
+    local stand = Instance.new("Model")
+    stand.Name = "SimpleStand"
+    
+    -- إنشاء الجزء الأساسي (الجذع)
+    local corePart = Instance.new("Part")
+    corePart.Name = "PrimaryPart"
+    corePart.Size = Vector3.new(2, 5, 2)
+    corePart.BrickColor = BrickColor.new("Really red") -- يمكنك تغيير اللون
+    corePart.Material = Enum.Material.Neon -- لإعطائه مظهراً مميزاً
+    corePart.Anchored = true -- مهم جداً: تثبيت الجزء
+    corePart.CanCollide = false
+    corePart.Parent = stand
+    
+    stand.PrimaryPart = corePart
+    
+    -- إضافة جزء علوي (رأس)
+    local headPart = Instance.new("Part")
+    headPart.Name = "Head"
+    headPart.Size = Vector3.new(2, 2, 2)
+    headPart.BrickColor = BrickColor.new("Bright blue")
+    headPart.Material = Enum.Material.Neon
+    headPart.Anchored = true
+    headPart.CanCollide = false
+    headPart.CFrame = corePart.CFrame * CFrame.new(0, 3.5, 0) -- وضعه فوق الجذع
+    headPart.Parent = stand
+    
+    -- ربط الأجزاء ببعضها (للتأكد من أنها تتحرك كوحدة واحدة)
+    local weld = Instance.new("WeldConstraint")
+    weld.Part0 = corePart
+    weld.Part1 = headPart
+    weld.Parent = stand
+    
+    return stand
 end
 
-local model = Instance.new("Model")
-model.Name = "Stand_" .. LocalPlayer.Name
-model.Parent = workspace
+-- ====================================================================
+-- 3. وظيفة استدعاء/إزالة الـ Stand
+-- ====================================================================
 
-local root = Instance.new("Part")
-root.Name = "StandRoot"
-root.Size = Vector3.new(2, 2, 1)
-root.Transparency = 0.2
-root.CanCollide = false
-root.Anchored = true
-root.Material = Enum.Material.ForceField
-root.Color = Color3.fromRGB(0, 255, 255)
-root.TopSurface = Enum.SurfaceType.Smooth
-root.BottomSurface = Enum.SurfaceType.Smooth
-root.Parent = model
-
-model.PrimaryPart = root
-
-State.Model = model
-State.Root = root
-
-if State.FollowConnection then
-    pcall(function() State.FollowConnection:Disconnect() end)
-end
-
-local t = 0
-local currentCF = root.CFrame
-
-State.FollowConnection = RunService.Heartbeat:Connect(function(dt)
-    if not State.Summoned or not State.Root or not State.Root.Parent then
+local function toggleStand()
+    local character = LocalPlayer.Character
+    if not character or not character:FindFirstChild("HumanoidRootPart") then
         return
     end
-
-    local playerRoot = GetRoot()
-    if not playerRoot then return end
-
-    t = t + dt
-    local backOffset = -playerRoot.CFrame.LookVector * 3.5
-    local bob = math.sin(t * 2) * 0.3
-    local upOffset = Vector3.new(0, 2.5 + bob, 0)
-
-    local targetPos = playerRoot.Position + backOffset + upOffset
-    local targetCF = CFrame.new(targetPos, targetPos + playerRoot.CFrame.LookVector)
-
-    currentCF = currentCF:Lerp(targetCF, math.clamp(dt * 8, 0, 1))
-    State.Root.CFrame = currentCF
-end)
+    
+    if activeStand then
+        -- إزالة الـ Stand
+        activeStand:Destroy()
+        activeStand = nil
+        print("Stand removed.")
+    else
+        -- استدعاء الـ Stand
+        local rootPart = character.HumanoidRootPart
+        local stand = createStandModel()
+        
+        -- حساب الموضع (خلف اللاعب)
+        -- نستخدم CFrame.lookVector * -STAND_OFFSET للحصول على الموضع الخلفي
+        local backVector = rootPart.CFrame.lookVector * -STAND_OFFSET
+        local newCFrame = rootPart.CFrame + backVector
+        
+        stand:SetPrimaryPartCFrame(newCFrame)
+        stand.Parent = workspace
+        activeStand = stand
+        print("Stand summoned.")
+    end
 end
 
-local function Summon()
-if State.Summoned then return end
-State.Summoned = true
-CreateStand()
-end
+-- ====================================================================
+-- 4. الاستماع لأحداث الدردشة (Chat Listener)
+-- ====================================================================
 
-local function ProcessCommand(msg)
-if not msg or msg == "" then return end
-msg = msg:match("^%s*(.-)%s*$") or msg
-msg = msg:lower()
-if msg == ".s" then
-Summon()
-end
-end
+-- بما أننا في LocalScript، لا يمكننا استخدام player.Chatted.
+-- سنستخدم TextChatService.MessageReceived للدردشة الحديثة.
 
-pcall(function()
-if LocalPlayer.Chatted then
-LocalPlayer.Chatted:Connect(function(msg)
-ProcessCommand(msg)
-end)
-end
-end)
-
-pcall(function()
-if TextChatService and TextChatService.OnIncomingMessage then
-TextChatService.OnIncomingMessage:Connect(function(message)
-if message then
-ProcessCommand(message.Text)
-end
-end)
-end
+TextChatService.MessageReceived:Connect(function(message)
+    -- التحقق من أن الرسالة من اللاعب المحلي
+    if message.TextSource and message.TextSource.UserId == LocalPlayer.UserId then
+        local trimmedMessage = string.lower(string.trim(message.Text))
+        
+        if trimmedMessage == COMMAND then
+            toggleStand()
+        end
+    end
 end)
 
-pcall(function()
-LocalPlayer.CharacterAdded:Connect(function()
-if State.FollowConnection then
-pcall(function() State.FollowConnection:Disconnect() end)
-State.FollowConnection = nil
-end
-if State.Model then
-pcall(function() State.Model:Destroy() end)
-State.Model = nil
-State.Root = nil
-end
-State.Summoned = false
-end)
-end)
+-- ====================================================================
+-- 5. التنفيذ الأولي
+-- ====================================================================
 
+-- تشغيل وظيفة استعادة الدردشة عند بدء السكربت
+restoreChatGUI()
+
+print("Stand Script Loaded. Type '.s' in chat to summon/remove your Stand.")
