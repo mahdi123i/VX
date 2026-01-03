@@ -241,6 +241,7 @@ local function SetIntangible(state)
         for _, part in pairs(LocalPlayer.Character:GetChildren()) do
             if part:IsA("BasePart") then
                 part.CanCollide = not state
+                part.Transparency = 0  -- Ensure visibility
             end
         end
         if LocalPlayer.Character:FindFirstChild("Humanoid") then
@@ -344,6 +345,14 @@ Services.RunService.Heartbeat:Connect(function()
         -- Anti-Sit: Prevent sitting on chairs
         if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
             LocalPlayer.Character.Humanoid.Sit = false
+        end
+        -- Stomp/Reset System: Reset if health is low (before dying)
+        if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
+            local humanoid = LocalPlayer.Character.Humanoid
+            if humanoid.Health <= 10 then  -- Reset before dying
+                warn("Stand health low, resetting...")
+                LocalPlayer:LoadCharacter()
+            end
         end
     end
     if Config.KillAura then
