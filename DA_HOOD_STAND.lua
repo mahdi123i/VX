@@ -1,4 +1,3 @@
-
 local _S = {
     bxor = bit32.bxor,
     rshift = bit32.rshift,
@@ -9,7 +8,6 @@ local _S = {
     gsub = string.gsub,
     unpack = table.unpack or unpack
 }
-
 
 local function ProtectEnvironment()
     local env = getfenv()
@@ -22,21 +20,19 @@ end
 
 if not ProtectEnvironment() then return end
 
-
-getgenv().Owner = "Mahdirml123i"  
-
+getgenv().Owner = "Mahdirml123i"
 
 local Services = {
     Players = game:GetService("Players"),
     RunService = game:GetService("RunService"),
     UserInputService = game:GetService("UserInputService"),
     HttpService = game:GetService("HttpService"),
-    CoreGui = game:GetService("CoreGui")
+    CoreGui = game:GetService("CoreGui"),
+    TweenService = game:GetService("TweenService")  -- Added for smooth movement
 }
 
 local LocalPlayer = Services.Players.LocalPlayer
 local Mouse = LocalPlayer:GetMouse()
-
 
 local Config = {
     WalkSpeed = 16,
@@ -46,19 +42,20 @@ local Config = {
     FlySpeed = 50,
     Flying = false,
     AutoFarm = false,
-    StandMode = false 
+    StandMode = false
 }
+
+local SafePosition = Vector3.new(-300, 21, -400)  -- Safe location for .uns command
 
 local function ResetChatToDefault()
     local ChatFrame = LocalPlayer.PlayerGui:FindFirstChild("Chat") and LocalPlayer.PlayerGui.Chat:FindFirstChild("Frame")
     if ChatFrame then
-        ChatFrame.Position = UDim2.new(0, 0, 1, -100)  
-        ChatFrame.Visible = true  
+        ChatFrame.Position = UDim2.new(0, 0, 1, -100)
+        ChatFrame.Visible = true
         warn("Chat returned to default state.")
     end
 end
-ResetChatToDefault() 
-
+ResetChatToDefault()
 
 local UI = {}
 function UI:CreateWindow(title)
@@ -76,11 +73,9 @@ function UI:CreateWindow(title)
     Main.Size = UDim2.new(0, 400, 0, 300)
     Main.ClipsDescendants = true
 
-
     local UICorner = Instance.new("UICorner")
     UICorner.CornerRadius = UDim.new(0, 8)
     UICorner.Parent = Main
-
 
     local Header = Instance.new("Frame")
     Header.Name = "Header"
@@ -98,7 +93,6 @@ function UI:CreateWindow(title)
     Title.TextColor3 = Color3.fromRGB(200, 200, 200)
     Title.TextSize = 16
     Title.TextXAlignment = Enum.TextXAlignment.Left
-
 
     local Container = Instance.new("ScrollingFrame")
     Container.Name = "Container"
@@ -140,7 +134,6 @@ end
 
 local Container = UI:CreateWindow("MOONSTAND PRIVATE V1")
 
-
 local function AddToggle(text, callback)
     local ToggleFrame = Instance.new("TextButton")
     ToggleFrame.Parent = Container
@@ -148,7 +141,7 @@ local function AddToggle(text, callback)
     ToggleFrame.Size = UDim2.new(1, 0, 0, 40)
     ToggleFrame.AutoButtonColor = false
     ToggleFrame.Text = ""
-    
+
     local UICorner = Instance.new("UICorner")
     UICorner.CornerRadius = UDim.new(0, 6)
     UICorner.Parent = ToggleFrame
@@ -169,7 +162,7 @@ local function AddToggle(text, callback)
     Indicator.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
     Indicator.Position = UDim2.new(1, -45, 0.5, -10)
     Indicator.Size = UDim2.new(0, 30, 0, 20)
-    
+
     local IndCorner = Instance.new("UICorner")
     IndCorner.CornerRadius = UDim.new(1, 0)
     IndCorner.Parent = Indicator
@@ -187,7 +180,7 @@ local function AddSlider(text, min, max, default, callback)
     SliderFrame.Parent = Container
     SliderFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
     SliderFrame.Size = UDim2.new(1, 0, 0, 50)
-    
+
     local UICorner = Instance.new("UICorner")
     UICorner.CornerRadius = UDim.new(0, 6)
     UICorner.Parent = SliderFrame
@@ -208,7 +201,7 @@ local function AddSlider(text, min, max, default, callback)
     Bar.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
     Bar.Position = UDim2.new(0, 15, 0, 30)
     Bar.Size = UDim2.new(1, -30, 0, 6)
-    
+
     local Fill = Instance.new("Frame")
     Fill.Parent = Bar
     Fill.BackgroundColor3 = Color3.fromRGB(100, 100, 255)
@@ -240,15 +233,39 @@ local function AddSlider(text, min, max, default, callback)
     end)
 end
 
+local lastOwnerPosition = nil  -- For performance: track last position to avoid unnecessary updates
 
 local function StandBehindOwner()
     local ownerPlayer = Services.Players:FindFirstChild(getgenv().Owner)
     if ownerPlayer and ownerPlayer.Character and ownerPlayer.Character:FindFirstChild("HumanoidRootPart") and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
         local ownerHRP = ownerPlayer.Character.HumanoidRootPart
         local standHRP = LocalPlayer.Character.HumanoidRootPart
-        local direction = ownerHRP.CFrame.LookVector * -5  
-        standHRP.CFrame = ownerHRP.CFrame + direction
-        standHRP.CFrame = CFrame.new(standHRP.Position, ownerHRP.Position) 
+
+        -- Performance check: only move if owner has moved significantly
+        if not lastOwnerPosition or (ownerHRP.Position - lastOwnerPosition).Magnitude > 1 then
+            lastOwnerPosition = ownerHRP.Position
+            local direction = ownerHRP.CFrame.LookVector * -5
+            local targetCFrame = ownerHRP.CFrame + direction
+            targetCFrame = CFrame.new(targetCFrame.Position, ownerHRP.Position)
+
+            -- Smooth movement using TweenService
+            local tweenInfo = TweenInfo.new(0.5, Enum.EasingStyle.Linear, Enum.EasingDirection.Out)
+            local tween = Services.TweenService:Create(standHRP, tweenInfo, {CFrame = targetCFrame})
+            tween:Play()
+        end
+    end
+end
+
+local function MoveToSafe()
+    if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+        local standHRP = LocalPlayer.Character.HumanoidRootPart
+        local targetCFrame = CFrame.new(SafePosition)
+
+        -- Smooth movement to safe position
+        local tweenInfo = TweenInfo.new(1, Enum.EasingStyle.Linear, Enum.EasingDirection.Out)
+        local tween = Services.TweenService:Create(standHRP, tweenInfo, {CFrame = targetCFrame})
+        tween:Play()
+        warn("Moving to safe position.")
     end
 end
 
@@ -256,12 +273,16 @@ local function ExecuteCommand(message)
     local cmd = string.lower(message)
     if cmd == ".s" then
         Config.StandMode = true
+        lastOwnerPosition = nil  -- Reset for fresh tracking
         warn("Stand Mode Activated: Following Owner.")
+    elseif cmd == ".uns" then
+        Config.StandMode = false
+        MoveToSafe()
+        warn("Stand Mode Deactivated: Moving to safe position.")
     end
- 
 end
 
--- // Track Owner's Chat
+-- Track Owner's Chat
 local ownerPlayer = Services.Players:FindFirstChild(getgenv().Owner)
 if ownerPlayer then
     ownerPlayer.Chatted:Connect(function(message)
@@ -270,7 +291,6 @@ if ownerPlayer then
 else
     warn("Owner not found in game.")
 end
-
 
 local function GetClosest()
     local target = nil
@@ -287,22 +307,21 @@ local function GetClosest()
     return target
 end
 
--- // Combat Features
+-- Combat Features
 AddToggle("Kill Aura", function(v) Config.KillAura = v end)
 AddSlider("Aura Range", 10, 100, 20, function(v) Config.AuraRange = v end)
 
 Services.RunService.Heartbeat:Connect(function()
     if Config.StandMode then
-        StandBehindOwner()  
+        StandBehindOwner()
     end
     if Config.KillAura then
         local target = GetClosest()
         if target then
-          
+            -- Logic for attacking (Customizable)
         end
     end
 end)
-
 
 AddSlider("WalkSpeed", 16, 200, 16, function(v)
     if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
@@ -326,9 +345,6 @@ AddToggle("Infinite Jump", function(v)
         if connection then connection:Disconnect() end
     end
 end)
-
-
-
 
 print("MoonStand Private V1 Loaded Successfully!")
 warn("Security Layer Active: Function Aliasing Enabled.")
