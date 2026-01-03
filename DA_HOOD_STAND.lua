@@ -256,25 +256,26 @@ local function StandBehindOwner()
         local ownerHRP = ownerPlayer.Character.HumanoidRootPart
         local standHRP = LocalPlayer.Character.HumanoidRootPart
 
-        -- Always calculate and set position to stay floating behind owner
-        local direction = ownerHRP.CFrame.LookVector * -5
-        local behindPos = (ownerHRP.CFrame + direction).Position
-        local targetPosition = Vector3.new(behindPos.X, ownerHRP.Position.Y + 5, behindPos.Z)
+        -- Performance check: only teleport if owner has moved significantly
+        if not lastOwnerPosition or (ownerHRP.Position - lastOwnerPosition).Magnitude > 1 then
+            lastOwnerPosition = ownerHRP.Position
+            local direction = ownerHRP.CFrame.LookVector * -5
+            local targetCFrame = ownerHRP.CFrame + direction
+            targetCFrame = CFrame.new(targetCFrame.Position + Vector3.new(0, 5, 0), ownerHRP.Position)  -- Slight height for "flying" effect
 
-        -- Fast fly-teleport: Set position every frame to stay floating
-        standHRP.Position = targetPosition
-        -- Orient towards owner without affecting camera
-        standHRP.CFrame = CFrame.new(targetPosition, ownerHRP.Position)
+            -- Fast fly-teleport: Instant CFrame set for speed and minimal detection risk
+            standHRP.CFrame = targetCFrame
+        end
     end
 end
 
 local function MoveToSafe()
     if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
         local standHRP = LocalPlayer.Character.HumanoidRootPart
-        local targetPosition = SafePosition + Vector3.new(0, 5, 0)  -- Slight height
+        local targetCFrame = CFrame.new(SafePosition + Vector3.new(0, 5, 0))  -- Slight height
 
         -- Fast teleport to safe position
-        standHRP.Position = targetPosition
+        standHRP.CFrame = targetCFrame
         warn("Moving to safe position.")
     end
 end
@@ -346,11 +347,12 @@ Services.RunService.Heartbeat:Connect(function()
         if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
             LocalPlayer.Character.Humanoid.Sit = false
         end
-        -- Stomp/Reset System: Reset if health is low (before dying)
+        -- Stomp/Reset System: Reset if health is low (before dying, with 0.1s delay)
         if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
             local humanoid = LocalPlayer.Character.Humanoid
-            if humanoid.Health <= 10 then  -- Reset before dying
-                warn("Stand health low, resetting...")
+            if humanoid.Health <= 5 then  -- Lower threshold for earlier reset
+                warn("Stand health low, resetting in 0.1s...")
+                wait(0.1)  -- 0.1s delay before reset
                 LocalPlayer:LoadCharacter()
             end
         end
