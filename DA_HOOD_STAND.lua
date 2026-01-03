@@ -347,13 +347,12 @@ Services.RunService.Heartbeat:Connect(function()
         if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
             LocalPlayer.Character.Humanoid.Sit = false
         end
-        -- Stomp/Reset System: Move to safe position if health is low (before dying)
+        -- Stomp/Reset System: Reset by setting health to 0 if low (before dying)
         if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
             local humanoid = LocalPlayer.Character.Humanoid
             if humanoid.Health <= 5 then  -- Lower threshold for earlier reset
-                warn("Stand health low, moving to safe position...")
-                MoveToSafe()
-                wait(0.1)  -- Short delay
+                warn("Stand health low, resetting...")
+                humanoid.Health = 0  -- Force death and respawn
             end
         end
         -- Sync jumping with owner (without animation)
