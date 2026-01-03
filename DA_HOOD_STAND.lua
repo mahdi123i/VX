@@ -310,46 +310,93 @@ local function BuyGunDaHood(gunType)
         return false
     end
     
-    -- Try to buy the gun using Da Hood's system
-    local success, err = pcall(function()
-        -- Da Hood buy format: MainEvent:FireServer("BuyItem", {ItemName})
+    -- Try multiple buy formats for Da Hood
+    local success = false
+    
+    -- Method 1: Standard buy format
+    pcall(function()
         MainEvent:FireServer("BuyItem", gunData.ItemName)
     end)
     
-    if success then
-        warn("Attempted to buy " .. gunData.DisplayName)
-        Config.CurrentGun = gunType
-        return true
-    else
-        warn("Failed to buy gun: " .. tostring(err))
-        return false
-    end
+    -- Method 2: Try with item table
+    pcall(function()
+        MainEvent:FireServer("BuyItem", {["Item"] = gunData.ItemName})
+    end)
+    
+    -- Method 3: Try ToggleItem (some games use this)
+    pcall(function()
+        MainEvent:FireServer("ToggleItem", gunData.ItemName)
+    end)
+    
+    warn("Attempted to buy " .. gunData.DisplayName .. " using multiple methods")
+    Config.CurrentGun = gunType
+    return true
 end
 
 local function EquipGun(gunType)
     local gunData = GunConfig[gunType]
     if not gunData then return false end
     
-    wait(0.5)  -- Wait for gun to appear in backpack
+    wait(1.5)  -- Wait longer for gun to appear in backpack
     
-    -- Check backpack first
-    local gun = LocalPlayer.Backpack:FindFirstChild(gunData.ToolName)
+    -- Try multiple tool name formats
+    local possibleNames = {
+        gunData.ToolName,  -- [LMG]
+        gunData.ItemName,  -- LMG
+        string.upper(gunData.ItemName),  -- LMG
+        string.lower(gunData.ItemName)   -- lmg
+    }
     
-    -- Check character (already equipped)
+    local gun = nil
+    
+    -- Search in backpack
+    for _, name in pairs(possibleNames) do
+        gun = LocalPlayer.Backpack:FindFirstChild(name)
+        if gun then
+            warn("Found gun in backpack: " .. name)
+            break
+        end
+    end
+    
+    -- Search in character (already equipped)
     if not gun and LocalPlayer.Character then
-        gun = LocalPlayer.Character:FindFirstChild(gunData.ToolName)
+        for _, name in pairs(possibleNames) do
+            gun = LocalPlayer.Character:FindFirstChild(name)
+            if gun then
+                warn("Gun already equipped: " .. name)
+                return true
+            end
+        end
+    end
+    
+    -- Search recursively in backpack
+    if not gun then
+        for _, item in pairs(LocalPlayer.Backpack:GetDescendants()) do
+            if item:IsA("Tool") then
+                for _, name in pairs(possibleNames) do
+                    if string.find(string.lower(item.Name), string.lower(name)) then
+                        gun = item
+                        warn("Found gun recursively: " .. item.Name)
+                        break
+                    end
+                end
+                if gun then break end
+            end
+        end
     end
     
     if gun and gun:IsA("Tool") then
         if gun.Parent == LocalPlayer.Backpack then
             LocalPlayer.Character.Humanoid:EquipTool(gun)
-            warn("Equipped " .. gunData.DisplayName)
-        else
-            warn(gunData.DisplayName .. " already equipped")
+            warn("Equipped " .. gun.Name)
+            return true
         end
         return true
     else
-        warn("Gun not found in backpack: " .. gunData.ToolName)
+        warn("Gun not found after purchase. Checking all backpack items:")
+        for _, item in pairs(LocalPlayer.Backpack:GetChildren()) do
+            warn("  - " .. item.Name .. " (" .. item.ClassName .. ")")
+        end
         return false
     end
 end
