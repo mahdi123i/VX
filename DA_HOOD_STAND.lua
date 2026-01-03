@@ -302,9 +302,9 @@ local function ExecuteCommand(message)
         warn("Stand Mode Activated: Following Owner (Frozen, No Animations, Transparent).")
     elseif cmd == ".uns" then
         Config.StandMode = false
-        SetIntangible(false)  -- Restore collisions and animations, visible
         MoveToSafe()
-        warn("Stand Mode Deactivated: Moving to safe position.")
+        SetIntangible(true)  -- Keep intangible and transparent to "vanish" without falling
+        warn("Stand Mode Deactivated: Vanished to safe position.")
     elseif cmd == "rj!" then
         warn("Rejoining the same server...")
         local success, err = pcall(function()
