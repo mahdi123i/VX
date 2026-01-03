@@ -14,7 +14,9 @@ local State = {
     StandModel = nil,
     StandRoot = nil,
     FollowConnection = nil,
-    AnimationConnection = nil
+    AnimationConnection = nil,
+    LastCommandTime = 0,
+    CommandCooldown = 0.5
 }
 
 local function SafeGetRoot(char)
@@ -165,19 +167,22 @@ local function DestroyStand()
     print("[STAND] Stand destroyed")
 end
 
-local function ProcessCommand(msg)
-    if not msg or msg == "" then return end
+local function ExecuteCommand(cmd)
+    local now = tick()
+    if now - State.LastCommandTime < State.CommandCooldown then
+        return
+    end
+    State.LastCommandTime = now
     
-    msg = msg:match("^%s*(.-)%s*$") or msg
-    msg = msg:lower()
+    cmd = cmd:lower()
     
-    if msg == ".s" or msg == ".summon" then
+    if cmd == "s" or cmd == "summon" then
         if not State.IsSummoned then
             State.IsSummoned = true
             CreateStand()
             print("[CMD] Stand summoned!")
         end
-    elseif msg == ".uns" or msg == ".unsummon" or msg == ".vanish" then
+    elseif cmd == "uns" or cmd == "unsummon" or cmd == "vanish" then
         if State.IsSummoned then
             State.IsSummoned = false
             DestroyStand()
@@ -187,13 +192,18 @@ local function ProcessCommand(msg)
 end
 
 print("[BOOT] Da Hood Stand Script Ready")
+print("[SYSTEM] Press Z to summon, X to vanish")
 
 pcall(function()
-    if LocalPlayer and LocalPlayer.Chatted then
-        LocalPlayer.Chatted:Connect(function(msg)
-            ProcessCommand(msg)
-        end)
-    end
+    UserInputService.InputBegan:Connect(function(input, gameProcessed)
+        if gameProcessed then return end
+        
+        if input.KeyCode == Enum.KeyCode.Z then
+            ExecuteCommand("s")
+        elseif input.KeyCode == Enum.KeyCode.X then
+            ExecuteCommand("uns")
+        end
+    end)
 end)
 
 pcall(function()
@@ -206,5 +216,3 @@ pcall(function()
         end)
     end
 end)
-
-print("[SYSTEM] Type .s to summon, .uns to vanish")
