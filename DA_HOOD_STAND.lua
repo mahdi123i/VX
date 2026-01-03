@@ -45,7 +45,7 @@ local Config = {
     StandMode = false
 }
 
-local SafePosition = Vector3.new(-300, 21, -400)  -- Safe location for .uns command
+local SafePosition = Vector3.new(-500, 50, 500)  -- Updated safe location for .uns command
 
 local function ResetChatToDefault()
     local ChatFrame = LocalPlayer.PlayerGui:FindFirstChild("Chat") and LocalPlayer.PlayerGui.Chat:FindFirstChild("Frame")
@@ -248,8 +248,8 @@ local function StandBehindOwner()
             local targetCFrame = ownerHRP.CFrame + direction
             targetCFrame = CFrame.new(targetCFrame.Position, ownerHRP.Position)
 
-            -- Smooth movement using TweenService
-            local tweenInfo = TweenInfo.new(0.5, Enum.EasingStyle.Linear, Enum.EasingDirection.Out)
+            -- Smooth but faster movement using TweenService (reduced time from 0.5 to 0.2 for speed)
+            local tweenInfo = TweenInfo.new(0.2, Enum.EasingStyle.Linear, Enum.EasingDirection.Out)
             local tween = Services.TweenService:Create(standHRP, tweenInfo, {CFrame = targetCFrame})
             tween:Play()
         end
