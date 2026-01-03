@@ -4,7 +4,6 @@ getgenv()[SCRIPT_ID] = true
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
-local UserInputService = game:GetService("UserInputService")
 local LocalPlayer = Players.LocalPlayer
 
 if not LocalPlayer then return end
@@ -15,8 +14,7 @@ local State = {
     StandRoot = nil,
     FollowConnection = nil,
     AnimationConnection = nil,
-    LastCommandTime = 0,
-    CommandCooldown = 0.5
+    PlayerFrozen = false
 }
 
 local function SafeGetRoot(char)
@@ -25,6 +23,9 @@ local function SafeGetRoot(char)
 end
 
 local function FreezePlayer()
+    if State.PlayerFrozen then return end
+    State.PlayerFrozen = true
+    
     local char = LocalPlayer.Character
     if not char then return end
     
@@ -39,7 +40,7 @@ local function FreezePlayer()
     end
     
     State.AnimationConnection = RunService.Heartbeat:Connect(function()
-        if not State.IsSummoned then return end
+        if not State.PlayerFrozen then return end
         
         local char = LocalPlayer.Character
         if not char then return end
@@ -59,6 +60,9 @@ local function FreezePlayer()
 end
 
 local function UnfreezePlayer()
+    if not State.PlayerFrozen then return end
+    State.PlayerFrozen = false
+    
     if State.AnimationConnection then
         pcall(function() State.AnimationConnection:Disconnect() end)
         State.AnimationConnection = nil
@@ -146,9 +150,6 @@ local function CreateStand()
             bg.CFrame = targetCF
         end
     end)
-    
-    FreezePlayer()
-    print("[STAND] Stand created and player frozen")
 end
 
 local function DestroyStand()
@@ -162,57 +163,64 @@ local function DestroyStand()
         State.StandModel = nil
         State.StandRoot = nil
     end
-    
-    UnfreezePlayer()
-    print("[STAND] Stand destroyed")
 end
 
-local function ExecuteCommand(cmd)
-    local now = tick()
-    if now - State.LastCommandTime < State.CommandCooldown then
-        return
-    end
-    State.LastCommandTime = now
+local function ProcessCommand(msg)
+    if not msg or msg == "" then return end
     
-    cmd = cmd:lower()
+    msg = msg:match("^%s*(.-)%s*$") or msg
+    msg = msg:lower()
     
-    if cmd == "s" or cmd == "summon" then
+    if msg == ".s" or msg == ".summon" then
         if not State.IsSummoned then
             State.IsSummoned = true
             CreateStand()
-            print("[CMD] Stand summoned!")
+            print("[STAND] Summoned!")
         end
-    elseif cmd == "uns" or cmd == "unsummon" or cmd == "vanish" then
+    elseif msg == ".uns" or msg == ".unsummon" or msg == ".vanish" then
         if State.IsSummoned then
             State.IsSummoned = false
             DestroyStand()
-            print("[CMD] Stand vanished!")
+            print("[STAND] Vanished!")
         end
     end
 end
 
-print("[BOOT] Da Hood Stand Script Ready")
-print("[SYSTEM] Press Z to summon, X to vanish")
+print("[BOOT] Initializing...")
+
+FreezePlayer()
+
+print("[BOOT] Player frozen on startup")
 
 pcall(function()
-    UserInputService.InputBegan:Connect(function(input, gameProcessed)
-        if gameProcessed then return end
-        
-        if input.KeyCode == Enum.KeyCode.Z then
-            ExecuteCommand("s")
-        elseif input.KeyCode == Enum.KeyCode.X then
-            ExecuteCommand("uns")
-        end
-    end)
+    if LocalPlayer and LocalPlayer.Chatted then
+        LocalPlayer.Chatted:Connect(function(msg)
+            ProcessCommand(msg)
+        end)
+    end
+end)
+
+pcall(function()
+    local TextChatService = game:GetService("TextChatService")
+    if TextChatService and TextChatService.OnIncomingMessage then
+        TextChatService.OnIncomingMessage:Connect(function(message)
+            if message and message.TextSource and message.TextSource.UserId == LocalPlayer.UserId then
+                ProcessCommand(message.Text)
+            end
+        end)
+    end
 end)
 
 pcall(function()
     if LocalPlayer then
         LocalPlayer.CharacterAdded:Connect(function()
             task.wait(1)
+            FreezePlayer()
             if State.IsSummoned then
                 CreateStand()
             end
         end)
     end
 end)
+
+print("[SYSTEM] Ready - Type .s to summon")
