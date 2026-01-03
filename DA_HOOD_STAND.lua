@@ -246,6 +246,11 @@ local function SetIntangible(state)
         end
         if LocalPlayer.Character:FindFirstChild("Humanoid") then
             LocalPlayer.Character.Humanoid.PlatformStand = state
+            -- Freeze animations by destroying Animator
+            local animator = LocalPlayer.Character.Humanoid:FindFirstChild("Animator")
+            if animator then
+                animator:Destroy()
+            end
         end
     end
 end
@@ -256,23 +261,18 @@ local function StandBehindOwner()
         local ownerHRP = ownerPlayer.Character.HumanoidRootPart
         local standHRP = LocalPlayer.Character.HumanoidRootPart
 
-        -- Performance check: only teleport if owner has moved significantly
-        if not lastOwnerPosition or (ownerHRP.Position - lastOwnerPosition).Magnitude > 1 then
-            lastOwnerPosition = ownerHRP.Position
-            local direction = ownerHRP.CFrame.LookVector * -5
-            local targetCFrame = ownerHRP.CFrame + direction
-            targetCFrame = CFrame.new(targetCFrame.Position + Vector3.new(0, 5, 0), ownerHRP.Position)  -- Slight height for "flying" effect
-
-            -- Fast fly-teleport: Instant CFrame set for speed and minimal detection risk
-            standHRP.CFrame = targetCFrame
-        end
+        -- Continuously set position behind owner (no teleport, just follow)
+        local direction = ownerHRP.CFrame.LookVector * -5
+        local behindPos = (ownerHRP.CFrame + direction).Position
+        standHRP.Position = Vector3.new(behindPos.X, ownerHRP.Position.Y, behindPos.Z)  -- Same Y level, no flying height
+        standHRP.CFrame = CFrame.new(standHRP.Position, ownerHRP.Position)  -- Face owner
     end
 end
 
 local function MoveToSafe()
     if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
         local standHRP = LocalPlayer.Character.HumanoidRootPart
-        local targetCFrame = CFrame.new(SafePosition + Vector3.new(0, 5, 0))  -- Slight height
+        local targetCFrame = CFrame.new(SafePosition)
 
         -- Fast teleport to safe position
         standHRP.CFrame = targetCFrame
@@ -285,11 +285,11 @@ local function ExecuteCommand(message)
     if cmd == ".s" then
         Config.StandMode = true
         lastOwnerPosition = nil  -- Reset for fresh tracking
-        SetIntangible(true)  -- Make intangible and enable flying
-        warn("Stand Mode Activated: Following Owner (Fast Fly-Teleport & Intangible).")
+        SetIntangible(true)  -- Make intangible, freeze animations
+        warn("Stand Mode Activated: Following Owner (Frozen, No Animations).")
     elseif cmd == ".uns" then
         Config.StandMode = false
-        SetIntangible(false)  -- Restore collisions
+        SetIntangible(false)  -- Restore collisions and animations
         MoveToSafe()
         warn("Stand Mode Deactivated: Moving to safe position.")
     elseif cmd == "rj!" then
@@ -347,13 +347,22 @@ Services.RunService.Heartbeat:Connect(function()
         if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
             LocalPlayer.Character.Humanoid.Sit = false
         end
-        -- Stomp/Reset System: Reset if health is low (before dying, with 0.1s delay)
+        -- Stomp/Reset System: Reset if health is low (before dying, with 0.1s delay) using teleport
         if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
             local humanoid = LocalPlayer.Character.Humanoid
             if humanoid.Health <= 5 then  -- Lower threshold for earlier reset
                 warn("Stand health low, resetting in 0.1s...")
                 wait(0.1)  -- 0.1s delay before reset
-                LocalPlayer:LoadCharacter()
+                Services.TeleportService:TeleportToPlaceInstance(game.PlaceId, game.JobId)
+            end
+        end
+        -- Sync jumping with owner (without animation)
+        local ownerPlayer = Services.Players:FindFirstChild(getgenv().Owner)
+        if ownerPlayer and ownerPlayer.Character and ownerPlayer.Character:FindFirstChild("Humanoid") then
+            local ownerHumanoid = ownerPlayer.Character.Humanoid
+            local standHumanoid = LocalPlayer.Character.Humanoid
+            if ownerHumanoid:GetState() == Enum.HumanoidStateType.Jumping and standHumanoid:GetState() ~= Enum.HumanoidStateType.Jumping then
+                standHumanoid:ChangeState(Enum.HumanoidStateType.Jumping)
             end
         end
     end
