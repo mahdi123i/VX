@@ -234,7 +234,6 @@ local function AddSlider(text, min, max, default, callback)
 end
 
 local lastOwnerPosition = nil  -- For performance: track last position to avoid unnecessary updates
-local targetPosition = nil  -- Target position for flying
 
 local function SetIntangible(state)
     if LocalPlayer.Character then
@@ -251,21 +250,32 @@ end
 
 local function StandBehindOwner()
     local ownerPlayer = Services.Players:FindFirstChild(getgenv().Owner)
-    if ownerPlayer and ownerPlayer.Character and ownerPlayer.Character:FindFirstChild("HumanoidRootPart") then
+    if ownerPlayer and ownerPlayer.Character and ownerPlayer.Character:FindFirstChild("HumanoidRootPart") and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
         local ownerHRP = ownerPlayer.Character.HumanoidRootPart
+        local standHRP = LocalPlayer.Character.HumanoidRootPart
 
-        -- Performance check: only update target if owner has moved significantly
+        -- Performance check: only teleport if owner has moved significantly
         if not lastOwnerPosition or (ownerHRP.Position - lastOwnerPosition).Magnitude > 1 then
             lastOwnerPosition = ownerHRP.Position
             local direction = ownerHRP.CFrame.LookVector * -5
-            targetPosition = (ownerHRP.CFrame + direction).Position
+            local targetCFrame = ownerHRP.CFrame + direction
+            targetCFrame = CFrame.new(targetCFrame.Position + Vector3.new(0, 5, 0), ownerHRP.Position)  -- Slight height for "flying" effect
+
+            -- Fast fly-teleport: Instant CFrame set for speed and minimal detection risk
+            standHRP.CFrame = targetCFrame
         end
     end
 end
 
 local function MoveToSafe()
-    targetPosition = SafePosition
-    warn("Moving to safe position.")
+    if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+        local standHRP = LocalPlayer.Character.HumanoidRootPart
+        local targetCFrame = CFrame.new(SafePosition + Vector3.new(0, 5, 0))  -- Slight height
+
+        -- Fast teleport to safe position
+        standHRP.CFrame = targetCFrame
+        warn("Moving to safe position.")
+    end
 end
 
 local function ExecuteCommand(message)
@@ -273,13 +283,11 @@ local function ExecuteCommand(message)
     if cmd == ".s" then
         Config.StandMode = true
         lastOwnerPosition = nil  -- Reset for fresh tracking
-        targetPosition = nil
         SetIntangible(true)  -- Make intangible and enable flying
-        warn("Stand Mode Activated: Following Owner (Flying & Intangible).")
+        warn("Stand Mode Activated: Following Owner (Fast Fly-Teleport & Intangible).")
     elseif cmd == ".uns" then
         Config.StandMode = false
         SetIntangible(false)  -- Restore collisions
-        targetPosition = nil
         MoveToSafe()
         warn("Stand Mode Deactivated: Moving to safe position.")
     end
@@ -314,33 +322,9 @@ end
 AddToggle("Kill Aura", function(v) Config.KillAura = v end)
 AddSlider("Aura Range", 10, 100, 20, function(v) Config.AuraRange = v end)
 
-Services.RunService.Heartbeat:Connect(function(deltaTime)
+Services.RunService.Heartbeat:Connect(function()
     if Config.StandMode then
         StandBehindOwner()
-    end
-    if targetPosition and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
-        local hrp = LocalPlayer.Character.HumanoidRootPart
-        local currentPos = hrp.Position
-        local direction = (targetPosition - currentPos).Unit
-        local distance = (targetPosition - currentPos).Magnitude
-
-        -- Move towards target at a controlled speed (undetected gradual movement)
-        local speed = 50  -- studs per second, adjust as needed
-        local moveAmount = math.min(speed * deltaTime, distance)
-        hrp.Position = currentPos + direction * moveAmount
-
-        -- Orient towards the owner or target
-        local ownerPlayer = Services.Players:FindFirstChild(getgenv().Owner)
-        if ownerPlayer and ownerPlayer.Character and ownerPlayer.Character:FindFirstChild("HumanoidRootPart") then
-            hrp.CFrame = CFrame.new(hrp.Position, ownerPlayer.Character.HumanoidRootPart.Position)
-        else
-            hrp.CFrame = CFrame.new(hrp.Position, targetPosition)
-        end
-
-        -- Stop if close enough
-        if distance < 1 then
-            targetPosition = nil
-        end
     end
     if Config.KillAura then
         local target = GetClosest()
