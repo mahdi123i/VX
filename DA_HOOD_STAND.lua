@@ -1,10 +1,4 @@
---[[
-    CUSTOM MOONSTAND REBORN - PRIVATE EDITION
-    Created by: Manus AI
-    Security Level: Advanced (Function Aliasing & Environment Protection)
-]]
 
--- // Security Layer (Inspired by .s logic)
 local _S = {
     bxor = bit32.bxor,
     rshift = bit32.rshift,
@@ -16,7 +10,7 @@ local _S = {
     unpack = table.unpack or unpack
 }
 
--- // Environment Check
+
 local function ProtectEnvironment()
     local env = getfenv()
     if not env.game or not env.workspace then
@@ -28,10 +22,10 @@ end
 
 if not ProtectEnvironment() then return end
 
--- // Owner Configuration (Required for Chat Tracking)
-getgenv().Owner = "اسم_الاونر"  -- غير الاسم حسب الحاجة
 
--- // Services
+getgenv().Owner = "Mahdirml123i"  
+
+
 local Services = {
     Players = game:GetService("Players"),
     RunService = game:GetService("RunService"),
@@ -43,7 +37,7 @@ local Services = {
 local LocalPlayer = Services.Players.LocalPlayer
 local Mouse = LocalPlayer:GetMouse()
 
--- // Configuration
+
 local Config = {
     WalkSpeed = 16,
     JumpPower = 50,
@@ -52,24 +46,20 @@ local Config = {
     FlySpeed = 50,
     Flying = false,
     AutoFarm = false,
-    StandMode = false  -- وضع الـ Stand (تأهب)
+    StandMode = false 
 }
 
--- // Reset Character on Load
-LocalPlayer:LoadCharacter()  -- Reset الشخصية أول شيء
-
--- // Return Chat to Default State (Da Hood Specific: Unhide and Reset Position)
 local function ResetChatToDefault()
     local ChatFrame = LocalPlayer.PlayerGui:FindFirstChild("Chat") and LocalPlayer.PlayerGui.Chat:FindFirstChild("Frame")
     if ChatFrame then
-        ChatFrame.Position = UDim2.new(0, 0, 1, -100)  -- المكان الافتراضي (أسفل الشاشة)
-        ChatFrame.Visible = true  -- إظهار الشات إذا كان مخفياً
+        ChatFrame.Position = UDim2.new(0, 0, 1, -100)  
+        ChatFrame.Visible = true  
         warn("Chat returned to default state.")
     end
 end
-ResetChatToDefault()  -- تنفيذ فوراً بعد الـ execute
+ResetChatToDefault() 
 
--- // UI Framework (Professional & Minimalist)
+
 local UI = {}
 function UI:CreateWindow(title)
     local ScreenGui = Instance.new("ScreenGui")
@@ -86,12 +76,12 @@ function UI:CreateWindow(title)
     Main.Size = UDim2.new(0, 400, 0, 300)
     Main.ClipsDescendants = true
 
-    -- Rounded Corners
+
     local UICorner = Instance.new("UICorner")
     UICorner.CornerRadius = UDim.new(0, 8)
     UICorner.Parent = Main
 
-    -- Header
+
     local Header = Instance.new("Frame")
     Header.Name = "Header"
     Header.Parent = Main
@@ -109,7 +99,7 @@ function UI:CreateWindow(title)
     Title.TextSize = 16
     Title.TextXAlignment = Enum.TextXAlignment.Left
 
-    -- Container
+
     local Container = Instance.new("ScrollingFrame")
     Container.Name = "Container"
     Container.Parent = Main
@@ -150,7 +140,7 @@ end
 
 local Container = UI:CreateWindow("MOONSTAND PRIVATE V1")
 
--- // UI Components
+
 local function AddToggle(text, callback)
     local ToggleFrame = Instance.new("TextButton")
     ToggleFrame.Parent = Container
@@ -250,26 +240,25 @@ local function AddSlider(text, min, max, default, callback)
     end)
 end
 
--- // Stand Mode Logic (Follow Owner and Stand Behind)
+
 local function StandBehindOwner()
     local ownerPlayer = Services.Players:FindFirstChild(getgenv().Owner)
     if ownerPlayer and ownerPlayer.Character and ownerPlayer.Character:FindFirstChild("HumanoidRootPart") and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
         local ownerHRP = ownerPlayer.Character.HumanoidRootPart
         local standHRP = LocalPlayer.Character.HumanoidRootPart
-        local direction = ownerHRP.CFrame.LookVector * -5  -- خلف الـ Owner بمسافة 5
+        local direction = ownerHRP.CFrame.LookVector * -5  
         standHRP.CFrame = ownerHRP.CFrame + direction
-        standHRP.CFrame = CFrame.new(standHRP.Position, ownerHRP.Position)  -- يواجه الـ Owner
+        standHRP.CFrame = CFrame.new(standHRP.Position, ownerHRP.Position) 
     end
 end
 
--- // Chat Listening and Command Execution (Only .s command, No UI for Chat, Standby Mode)
 local function ExecuteCommand(message)
     local cmd = string.lower(message)
     if cmd == ".s" then
         Config.StandMode = true
         warn("Stand Mode Activated: Following Owner.")
     end
-    -- الأوامر الأخرى تم إزالتها كما طلبت
+ 
 end
 
 -- // Track Owner's Chat
@@ -282,7 +271,7 @@ else
     warn("Owner not found in game.")
 end
 
--- // Logic Implementation
+
 local function GetClosest()
     local target = nil
     local dist = Config.AuraRange
@@ -304,18 +293,17 @@ AddSlider("Aura Range", 10, 100, 20, function(v) Config.AuraRange = v end)
 
 Services.RunService.Heartbeat:Connect(function()
     if Config.StandMode then
-        StandBehindOwner()  -- يتبع ويوقف خلف الـ Owner
+        StandBehindOwner()  
     end
     if Config.KillAura then
         local target = GetClosest()
         if target then
-            -- Logic for attacking (Customizable)
-            -- Example: Remote:FireServer(target)
+          
         end
     end
 end)
 
--- // Movement Features
+
 AddSlider("WalkSpeed", 16, 200, 16, function(v)
     if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
         LocalPlayer.Character.Humanoid.WalkSpeed = v
@@ -339,10 +327,9 @@ AddToggle("Infinite Jump", function(v)
     end
 end)
 
--- // Load Additional Script (if needed)
-loadstring(game:HttpGet("https://raw.githubusercontent.com/mahdi123i/VX/refs/heads/main/DA_HOOD_STAND.lua", true))()
 
--- // Finalization
+
+
 print("MoonStand Private V1 Loaded Successfully!")
 warn("Security Layer Active: Function Aliasing Enabled.")
 warn("Chat Listening Enabled for Owner: " .. getgenv().Owner)
