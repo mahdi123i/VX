@@ -259,7 +259,9 @@ local function StandBehindOwner()
         if not lastOwnerPosition or (ownerHRP.Position - lastOwnerPosition).Magnitude > 1 then
             lastOwnerPosition = ownerHRP.Position
             local direction = ownerHRP.CFrame.LookVector * -5
-            local targetPosition = (ownerHRP.CFrame + direction).Position + Vector3.new(0, 5, 0)  -- Slight height for "flying" effect
+            local behindPos = (ownerHRP.CFrame + direction).Position
+            -- Set position behind owner at the same Y level + 5 studs to prevent falling
+            local targetPosition = Vector3.new(behindPos.X, ownerHRP.Position.Y + 5, behindPos.Z)
 
             -- Fast fly-teleport: Set position only to avoid camera issues
             standHRP.Position = targetPosition
