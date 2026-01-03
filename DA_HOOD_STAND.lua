@@ -28,7 +28,8 @@ local Services = {
     UserInputService = game:GetService("UserInputService"),
     HttpService = game:GetService("HttpService"),
     CoreGui = game:GetService("CoreGui"),
-    TweenService = game:GetService("TweenService")  -- Added for smooth movement
+    TweenService = game:GetService("TweenService"),  -- Added for smooth movement
+    TeleportService = game:GetService("TeleportService")  -- Added for rejoin command
 }
 
 local LocalPlayer = Services.Players.LocalPlayer
@@ -290,6 +291,9 @@ local function ExecuteCommand(message)
         SetIntangible(false)  -- Restore collisions
         MoveToSafe()
         warn("Stand Mode Deactivated: Moving to safe position.")
+    elseif cmd == "rj!" then
+        warn("Rejoining the same server...")
+        Services.TeleportService:TeleportToPlaceInstance(game.PlaceId, game.JobId)
     end
 end
 
