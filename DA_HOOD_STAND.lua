@@ -246,6 +246,22 @@ local function SetIntangible(state)
         if LocalPlayer.Character:FindFirstChild("Humanoid") then
             LocalPlayer.Character.Humanoid.PlatformStand = state
         end
+        -- Add/Remove BodyVelocity for floating
+        local hrp = LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+        if hrp then
+            local bv = hrp:FindFirstChild("BodyVelocity")
+            if state then
+                if not bv then
+                    bv = Instance.new("BodyVelocity")
+                    bv.Name = "BodyVelocity"
+                    bv.Parent = hrp
+                    bv.MaxForce = Vector3.new(0, 4000, 0)  -- Only upward force
+                    bv.Velocity = Vector3.new(0, 10, 0)  -- Gentle upward velocity to stay floating
+                end
+            else
+                if bv then bv:Destroy() end
+            end
+        end
     end
 end
 
