@@ -46,7 +46,8 @@ local Config = {
     StandMode = false
 }
 
-local SafePosition = Vector3.new(-500, 50, 500)  -- Updated safe location for .uns command
+local SafePosition = Vector3.new(211.795, 48.394, -595)  -- Updated safe location for .uns command
+
 local isOwnerTouching = false  -- Flag to detect if owner is touching the stand
 
 local function ResetChatToDefault()
