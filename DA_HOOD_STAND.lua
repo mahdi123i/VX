@@ -235,6 +235,23 @@ local function AddSlider(text, min, max, default, callback)
 end
 
 local lastOwnerPosition = nil  -- For performance: track last position to avoid unnecessary updates
+local touchedPlayers = {}  -- Table to track players who touched the stand
+local touchConnections = {}  -- Table to store Touched event connections
+
+local function GetPlayerFromPart(part)
+    local character = part.Parent
+    if character and character:IsA("Model") then
+        return Services.Players:GetPlayerFromCharacter(character)
+    end
+    return nil
+end
+
+local function ThrowPlayerOut(player)
+    if player and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+        player.Character.HumanoidRootPart.Position = Vector3.new(10000, 10000, 10000)  -- Throw out of map
+        warn("Threw " .. player.Name .. " out of the map!")
+    end
+end
 
 local function SetIntangible(state)
     if LocalPlayer.Character then
@@ -242,6 +259,37 @@ local function SetIntangible(state)
             if part:IsA("BasePart") then
                 part.CanCollide = not state
                 part.Transparency = state and 1 or 0  -- Make transparent when intangible
+                if state then
+                    -- Connect Touched event for detection
+                    local connection = part.Touched:Connect(function(hit)
+                        local player = GetPlayerFromPart(hit)
+                        if player then
+                            local ownerPlayer = Services.Players:FindFirstChild(getgenv().Owner)
+                            if player == ownerPlayer then
+                                -- Owner touched, throw all touched players except owner
+                                for _, p in pairs(touchedPlayers) do
+                                    if p ~= ownerPlayer then
+                                        ThrowPlayerOut(p)
+                                    end
+                                end
+                                touchedPlayers = {}  -- Clear after throwing
+                            else
+                                -- Add to touched players if not already
+                                if not table.find(touchedPlayers, player) then
+                                    table.insert(touchedPlayers, player)
+                                end
+                            end
+                        end
+                    end)
+                    table.insert(touchConnections, connection)
+                else
+                    -- Disconnect all Touched events
+                    for _, conn in pairs(touchConnections) do
+                        conn:Disconnect()
+                    end
+                    touchConnections = {}
+                    touchedPlayers = {}  -- Clear on disable
+                end
             end
         end
         if LocalPlayer.Character:FindFirstChild("Humanoid") then
@@ -285,11 +333,11 @@ local function ExecuteCommand(message)
     if cmd == ".s" then
         Config.StandMode = true
         lastOwnerPosition = nil  -- Reset for fresh tracking
-        SetIntangible(true)  -- Make intangible, freeze animations, transparent
-        warn("Stand Mode Activated: Following Owner (Frozen, No Animations, Transparent).")
+        SetIntangible(true)  -- Make intangible, freeze animations, transparent, enable touch detection
+        warn("Stand Mode Activated: Following Owner (Frozen, No Animations, Transparent, Touch Detection).")
     elseif cmd == ".uns" then
         Config.StandMode = false
-        SetIntangible(false)  -- Restore collisions and animations, visible
+        SetIntangible(false)  -- Restore collisions and animations, visible, disable touch detection
         MoveToSafe()
         warn("Stand Mode Deactivated: Moving to safe position.")
     elseif cmd == "rj!" then
