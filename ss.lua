@@ -1,4 +1,4 @@
-local SCRIPT_ID = "DAHOOD_STAND_" .. tostring(math.random(100000, 999999))
+كيف يعني local SCRIPT_ID = "DAHOOD_STAND_" .. tostring(math.random(100000, 999999))
 if getgenv()[SCRIPT_ID] then return end
 getgenv()[SCRIPT_ID] = true
 
