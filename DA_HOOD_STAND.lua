@@ -545,6 +545,33 @@ local function ExecuteCommand(message)
                 warn("AR equipped with auto-reload enabled.")
             end
         end
+    elseif cmd == ".db" then
+        warn("Double Barrel command received. Buying and equipping Double Barrel...")
+        if BuyGunDaHood("db") then
+            wait(1)
+            if EquipGun("db") then
+                Config.AutoReload = true
+                warn("Double Barrel equipped with auto-reload enabled.")
+            end
+        end
+    elseif cmd == ".smg" then
+        warn("SMG command received. Buying and equipping SMG...")
+        if BuyGunDaHood("smg") then
+            wait(1)
+            if EquipGun("smg") then
+                Config.AutoReload = true
+                warn("SMG equipped with auto-reload enabled.")
+            end
+        end
+    elseif cmd == ".rev" then
+        warn("Revolver command received. Buying and equipping Revolver...")
+        if BuyGunDaHood("rev") then
+            wait(1)
+            if EquipGun("rev") then
+                Config.AutoReload = true
+                warn("Revolver equipped with auto-reload enabled.")
+            end
+        end
     elseif cmd == "rj!" then
         warn("Rejoining the same server...")
         local success, err = pcall(function()
@@ -688,6 +715,6 @@ print("MoonStand Private V1 Loaded Successfully!")
 warn("Security Layer Active: Function Aliasing Enabled.")
 warn("Chat Listening Enabled for Owner: " .. getgenv().Owner)
 warn("Standby Mode Active: Waiting for Commands.")
-warn("Gun Commands Added: .lmg, .aug, .shotty, .ar")
+warn("Gun Commands: .lmg, .aug, .shotty, .db, .smg, .rev, .ar")
 warn("Da Hood optimized gun system loaded!")
 warn("Chat returned to default state after execute.")
