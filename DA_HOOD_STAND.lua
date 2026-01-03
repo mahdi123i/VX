@@ -28,8 +28,9 @@ local Services = {
     UserInputService = game:GetService("UserInputService"),
     HttpService = game:GetService("HttpService"),
     CoreGui = game:GetService("CoreGui"),
-    TweenService = game:GetService("TweenService"),  -- Added for smooth movement
-    TeleportService = game:GetService("TeleportService")  -- Added for rejoin command
+    TweenService = game:GetService("TweenService"),
+    TeleportService = game:GetService("TeleportService"),
+    ReplicatedStorage = game:GetService("ReplicatedStorage")
 }
 
 local LocalPlayer = Services.Players.LocalPlayer
@@ -43,12 +44,42 @@ local Config = {
     FlySpeed = 50,
     Flying = false,
     AutoFarm = false,
-    StandMode = false
+    StandMode = false,
+    CurrentGun = nil,
+    AutoReload = false
 }
 
-local SafePosition = Vector3.new(211.795, 48.394, -595)  -- Updated safe location for .uns command
+local SafePosition = Vector3.new(211.795, 48.394, -595)
 
-local isOwnerTouching = false  -- Flag to detect if owner is touching the stand
+local isOwnerTouching = false
+
+-- DA HOOD GUN CONFIGURATION
+local GunConfig = {
+    ["lmg"] = {
+        DisplayName = "LMG",
+        ToolName = "[LMG]",  -- Da Hood uses [GunName] format
+        ItemName = "LMG",
+        Price = 0
+    },
+    ["aug"] = {
+        DisplayName = "AUG",
+        ToolName = "[AUG]",
+        ItemName = "AUG",
+        Price = 0
+    },
+    ["shotty"] = {
+        DisplayName = "Shotgun",
+        ToolName = "[Shotgun]",
+        ItemName = "Shotgun",
+        Price = 0
+    },
+    ["ar"] = {
+        DisplayName = "AR",
+        ToolName = "[AR]",
+        ItemName = "AR",
+        Price = 0
+    }
+}
 
 local function ResetChatToDefault()
     local ChatFrame = LocalPlayer.PlayerGui:FindFirstChild("Chat") and LocalPlayer.PlayerGui.Chat:FindFirstChild("Frame")
@@ -111,7 +142,6 @@ function UI:CreateWindow(title)
     UIListLayout.SortOrder = Enum.SortOrder.LayoutOrder
     UIListLayout.Padding = UDim.new(0, 8)
 
-    -- Dragging Logic
     local dragging, dragInput, dragStart, startPos
     Header.InputBegan:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1 then
@@ -236,7 +266,7 @@ local function AddSlider(text, min, max, default, callback)
     end)
 end
 
-local lastOwnerPosition = nil  -- For performance: track last position to avoid unnecessary updates
+local lastOwnerPosition = nil
 
 local function GetPlayerFromPart(part)
     local character = part.Parent
@@ -251,12 +281,11 @@ local function SetIntangible(state)
         for _, part in pairs(LocalPlayer.Character:GetChildren()) do
             if part:IsA("BasePart") then
                 part.CanCollide = not state
-                part.Transparency = state and 1 or 0  -- Make transparent when intangible
+                part.Transparency = state and 1 or 0
             end
         end
         if LocalPlayer.Character:FindFirstChild("Humanoid") then
             LocalPlayer.Character.Humanoid.PlatformStand = state
-            -- Freeze animations by destroying Animator
             local animator = LocalPlayer.Character.Humanoid:FindFirstChild("Animator")
             if animator then
                 animator:Destroy()
@@ -265,19 +294,131 @@ local function SetIntangible(state)
     end
 end
 
+-- DA HOOD GUN FUNCTIONS
+
+local function BuyGunDaHood(gunType)
+    local gunData = GunConfig[gunType]
+    if not gunData then
+        warn("Unknown gun type: " .. gunType)
+        return false
+    end
+    
+    -- Da Hood uses MainEvent remote for buying items
+    local MainEvent = Services.ReplicatedStorage:FindFirstChild("MainEvent")
+    if not MainEvent then
+        warn("MainEvent not found! Cannot buy gun.")
+        return false
+    end
+    
+    -- Try to buy the gun using Da Hood's system
+    local success, err = pcall(function()
+        -- Da Hood buy format: MainEvent:FireServer("BuyItem", {ItemName})
+        MainEvent:FireServer("BuyItem", gunData.ItemName)
+    end)
+    
+    if success then
+        warn("Attempted to buy " .. gunData.DisplayName)
+        Config.CurrentGun = gunType
+        return true
+    else
+        warn("Failed to buy gun: " .. tostring(err))
+        return false
+    end
+end
+
+local function EquipGun(gunType)
+    local gunData = GunConfig[gunType]
+    if not gunData then return false end
+    
+    wait(0.5)  -- Wait for gun to appear in backpack
+    
+    -- Check backpack first
+    local gun = LocalPlayer.Backpack:FindFirstChild(gunData.ToolName)
+    
+    -- Check character (already equipped)
+    if not gun and LocalPlayer.Character then
+        gun = LocalPlayer.Character:FindFirstChild(gunData.ToolName)
+    end
+    
+    if gun and gun:IsA("Tool") then
+        if gun.Parent == LocalPlayer.Backpack then
+            LocalPlayer.Character.Humanoid:EquipTool(gun)
+            warn("Equipped " .. gunData.DisplayName)
+        else
+            warn(gunData.DisplayName .. " already equipped")
+        end
+        return true
+    else
+        warn("Gun not found in backpack: " .. gunData.ToolName)
+        return false
+    end
+end
+
+local function ReloadGun()
+    if not LocalPlayer.Character then return end
+    
+    local currentTool = LocalPlayer.Character:FindFirstChildOfClass("Tool")
+    if not currentTool then return end
+    
+    -- Da Hood reload: Access the tool's reload remote/function directly
+    local MainEvent = Services.ReplicatedStorage:FindFirstChild("MainEvent")
+    if MainEvent then
+        local success = pcall(function()
+            -- Da Hood uses MainEvent for reloading
+            MainEvent:FireServer("Reload", currentTool)
+        end)
+        
+        if success then
+            warn("Reloaded gun via MainEvent")
+            return
+        end
+    end
+    
+    -- Fallback: Try to find and use tool's reload bindable
+    local reloadBindable = currentTool:FindFirstChild("Reload")
+    if reloadBindable and reloadBindable:IsA("BindableEvent") then
+        pcall(function()
+            reloadBindable:Fire()
+        end)
+        warn("Reloaded gun via Bindable")
+        return
+    end
+    
+    warn("Could not find reload method")
+end
+
+local lastReloadTime = 0
+local function AutoReloadLoop()
+    Services.RunService.Heartbeat:Connect(function()
+        if Config.AutoReload and Config.CurrentGun and LocalPlayer.Character then
+            local currentTool = LocalPlayer.Character:FindFirstChildOfClass("Tool")
+            if currentTool then
+                -- Look for ammo value in the tool
+                local ammo = currentTool:FindFirstChild("Ammo")
+                if ammo and ammo:IsA("IntValue") then
+                    if ammo.Value <= 5 and (tick() - lastReloadTime) > 2 then
+                        ReloadGun()
+                        lastReloadTime = tick()
+                    end
+                end
+            end
+        end
+    end)
+end
+
+AutoReloadLoop()
+
 local function StandBehindOwner()
     local ownerPlayer = Services.Players:FindFirstChild(getgenv().Owner)
     if ownerPlayer and ownerPlayer.Character and ownerPlayer.Character:FindFirstChild("HumanoidRootPart") and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
         local ownerHRP = ownerPlayer.Character.HumanoidRootPart
         local standHRP = LocalPlayer.Character.HumanoidRootPart
 
-        -- Only set position if owner is not touching the stand (to prevent glitches)
         if not isOwnerTouching then
-            -- Continuously set position behind owner (no teleport, just follow)
             local direction = ownerHRP.CFrame.LookVector * -5
             local behindPos = (ownerHRP.CFrame + direction).Position
-            standHRP.Position = Vector3.new(behindPos.X, ownerHRP.Position.Y, behindPos.Z)  -- Same Y level, no flying height
-            standHRP.CFrame = CFrame.new(standHRP.Position, ownerHRP.Position)  -- Face owner
+            standHRP.Position = Vector3.new(behindPos.X, ownerHRP.Position.Y, behindPos.Z)
+            standHRP.CFrame = CFrame.new(standHRP.Position, ownerHRP.Position)
         end
     end
 end
@@ -286,8 +427,6 @@ local function MoveToSafe()
     if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
         local standHRP = LocalPlayer.Character.HumanoidRootPart
         local targetCFrame = CFrame.new(SafePosition)
-
-        -- Fast teleport to safe position
         standHRP.CFrame = targetCFrame
         warn("Moving to safe position.")
     end
@@ -297,14 +436,50 @@ local function ExecuteCommand(message)
     local cmd = string.lower(message)
     if cmd == ".s" then
         Config.StandMode = true
-        lastOwnerPosition = nil  -- Reset for fresh tracking
-        SetIntangible(true)  -- Make intangible, freeze animations, transparent
+        lastOwnerPosition = nil
+        SetIntangible(true)
         warn("Stand Mode Activated: Following Owner (Frozen, No Animations, Transparent).")
     elseif cmd == ".uns" then
         Config.StandMode = false
         MoveToSafe()
-        SetIntangible(true)  -- Keep intangible and transparent to "vanish" without falling
+        SetIntangible(true)
         warn("Stand Mode Deactivated: Vanished to safe position.")
+    elseif cmd == ".lmg" then
+        warn("LMG command received. Buying and equipping LMG...")
+        if BuyGunDaHood("lmg") then
+            wait(1)
+            if EquipGun("lmg") then
+                Config.AutoReload = true
+                warn("LMG equipped with auto-reload enabled.")
+            end
+        end
+    elseif cmd == ".aug" then
+        warn("AUG command received. Buying and equipping AUG...")
+        if BuyGunDaHood("aug") then
+            wait(1)
+            if EquipGun("aug") then
+                Config.AutoReload = true
+                warn("AUG equipped with auto-reload enabled.")
+            end
+        end
+    elseif cmd == ".shotty" then
+        warn("Shotgun command received. Buying and equipping Shotgun...")
+        if BuyGunDaHood("shotty") then
+            wait(1)
+            if EquipGun("shotty") then
+                Config.AutoReload = true
+                warn("Shotgun equipped with auto-reload enabled.")
+            end
+        end
+    elseif cmd == ".ar" then
+        warn("AR command received. Buying and equipping AR...")
+        if BuyGunDaHood("ar") then
+            wait(1)
+            if EquipGun("ar") then
+                Config.AutoReload = true
+                warn("AR equipped with auto-reload enabled.")
+            end
+        end
     elseif cmd == "rj!" then
         warn("Rejoining the same server...")
         local success, err = pcall(function()
@@ -316,7 +491,6 @@ local function ExecuteCommand(message)
     end
 end
 
--- Function to connect chat listener for owner
 local function ConnectOwnerChat(ownerPlayer)
     if ownerPlayer then
         ownerPlayer.Chatted:Connect(function(message)
@@ -326,7 +500,6 @@ local function ConnectOwnerChat(ownerPlayer)
     end
 end
 
--- Check if owner is already in game
 local ownerPlayer = Services.Players:FindFirstChild(getgenv().Owner)
 if ownerPlayer then
     ConnectOwnerChat(ownerPlayer)
@@ -334,18 +507,20 @@ else
     warn("Owner not found in game. Waiting for owner to join...")
 end
 
--- Listen for owner joining
 Services.Players.PlayerAdded:Connect(function(player)
     if player.Name == getgenv().Owner then
         ConnectOwnerChat(player)
     end
 end)
 
--- Ensure script runs after character loads
 LocalPlayer.CharacterAdded:Connect(function(character)
-    wait(1)  -- Wait for character to fully load
+    wait(1)
     if Config.StandMode then
         SetIntangible(true)
+    end
+    if Config.CurrentGun then
+        wait(2)
+        EquipGun(Config.CurrentGun)
     end
 end)
 
@@ -364,13 +539,11 @@ local function GetClosest()
     return target
 end
 
--- Combat Features
 AddToggle("Kill Aura", function(v) Config.KillAura = v end)
 AddSlider("Aura Range", 10, 100, 20, function(v) Config.AuraRange = v end)
 
 Services.RunService.Heartbeat:Connect(function()
     if Config.StandMode then
-        -- Check if owner is touching the stand to prevent glitches
         isOwnerTouching = false
         if LocalPlayer.Character then
             for _, part in pairs(LocalPlayer.Character:GetChildren()) do
@@ -389,18 +562,15 @@ Services.RunService.Heartbeat:Connect(function()
         end
 
         StandBehindOwner()
-        -- Anti-Sit: Prevent sitting on chairs
         if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
             LocalPlayer.Character.Humanoid.Sit = false
         end
-        -- Keep stand invincible in stand mode (undetected health regen)
         if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
             local humanoid = LocalPlayer.Character.Humanoid
             if humanoid.Health < humanoid.MaxHealth then
-                humanoid.Health = humanoid.MaxHealth  -- Regenerate health instantly to prevent death
+                humanoid.Health = humanoid.MaxHealth
             end
         end
-        -- Sync jumping with owner (without animation)
         local ownerPlayer = Services.Players:FindFirstChild(getgenv().Owner)
         if ownerPlayer and ownerPlayer.Character and ownerPlayer.Character:FindFirstChild("Humanoid") then
             local ownerHumanoid = ownerPlayer.Character.Humanoid
@@ -410,19 +580,18 @@ Services.RunService.Heartbeat:Connect(function()
             end
         end
     else
-        -- Stomp/Reset System: Only when not in stand mode
         if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
             local humanoid = LocalPlayer.Character.Humanoid
-            if humanoid.Health <= 5 then  -- Lower threshold for earlier reset
+            if humanoid.Health <= 5 then
                 warn("Health low, resetting...")
-                humanoid.Health = 0  -- Force death and respawn
+                humanoid.Health = 0
             end
         end
     end
     if Config.KillAura then
         local target = GetClosest()
         if target then
-            -- Logic for attacking (Customizable)
+            -- Logic for attacking
         end
     end
 end)
@@ -454,4 +623,6 @@ print("MoonStand Private V1 Loaded Successfully!")
 warn("Security Layer Active: Function Aliasing Enabled.")
 warn("Chat Listening Enabled for Owner: " .. getgenv().Owner)
 warn("Standby Mode Active: Waiting for Commands.")
+warn("Gun Commands Added: .lmg, .aug, .shotty, .ar")
+warn("Da Hood optimized gun system loaded!")
 warn("Chat returned to default state after execute.")
