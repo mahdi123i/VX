@@ -47,6 +47,7 @@ local Config = {
 }
 
 local SafePosition = Vector3.new(-500, 50, 500)  -- Updated safe location for .uns command
+local isOwnerTouching = false  -- Flag to detect if owner is touching the stand
 
 local function ResetChatToDefault()
     local ChatFrame = LocalPlayer.PlayerGui:FindFirstChild("Chat") and LocalPlayer.PlayerGui.Chat:FindFirstChild("Frame")
@@ -236,6 +237,14 @@ end
 
 local lastOwnerPosition = nil  -- For performance: track last position to avoid unnecessary updates
 
+local function GetPlayerFromPart(part)
+    local character = part.Parent
+    if character and character:IsA("Model") then
+        return Services.Players:GetPlayerFromCharacter(character)
+    end
+    return nil
+end
+
 local function SetIntangible(state)
     if LocalPlayer.Character then
         for _, part in pairs(LocalPlayer.Character:GetChildren()) do
@@ -261,11 +270,14 @@ local function StandBehindOwner()
         local ownerHRP = ownerPlayer.Character.HumanoidRootPart
         local standHRP = LocalPlayer.Character.HumanoidRootPart
 
-        -- Continuously set position behind owner (no teleport, just follow)
-        local direction = ownerHRP.CFrame.LookVector * -5
-        local behindPos = (ownerHRP.CFrame + direction).Position
-        standHRP.Position = Vector3.new(behindPos.X, ownerHRP.Position.Y, behindPos.Z)  -- Same Y level, no flying height
-        standHRP.CFrame = CFrame.new(standHRP.Position, ownerHRP.Position)  -- Face owner
+        -- Only set position if owner is not touching the stand (to prevent glitches)
+        if not isOwnerTouching then
+            -- Continuously set position behind owner (no teleport, just follow)
+            local direction = ownerHRP.CFrame.LookVector * -5
+            local behindPos = (ownerHRP.CFrame + direction).Position
+            standHRP.Position = Vector3.new(behindPos.X, ownerHRP.Position.Y, behindPos.Z)  -- Same Y level, no flying height
+            standHRP.CFrame = CFrame.new(standHRP.Position, ownerHRP.Position)  -- Face owner
+        end
     end
 end
 
@@ -342,6 +354,24 @@ AddSlider("Aura Range", 10, 100, 20, function(v) Config.AuraRange = v end)
 
 Services.RunService.Heartbeat:Connect(function()
     if Config.StandMode then
+        -- Check if owner is touching the stand to prevent glitches
+        isOwnerTouching = false
+        if LocalPlayer.Character then
+            for _, part in pairs(LocalPlayer.Character:GetChildren()) do
+                if part:IsA("BasePart") then
+                    local touchingParts = part:GetTouchingParts()
+                    for _, touchPart in pairs(touchingParts) do
+                        local player = GetPlayerFromPart(touchPart)
+                        if player == Services.Players:FindFirstChild(getgenv().Owner) then
+                            isOwnerTouching = true
+                            break
+                        end
+                    end
+                    if isOwnerTouching then break end
+                end
+            end
+        end
+
         StandBehindOwner()
         -- Anti-Sit: Prevent sitting on chairs
         if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
