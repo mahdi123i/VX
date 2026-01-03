@@ -1,20 +1,40 @@
-كيف يعني local SCRIPT_ID = "DAHOOD_STAND_" .. tostring(math.random(100000, 999999))
+local SCRIPT_ID = "DAHOOD_STAND_REAL_" .. tostring(math.random(100000, 999999))
 if getgenv()[SCRIPT_ID] then return end
 getgenv()[SCRIPT_ID] = true
-
-local DA_HOOD_PLACE_ID = 2788229376
-if game.PlaceId ~= 2788229376 then
-    print("[STAND] Not in Da Hood - aborting")
-    return
-end
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local LocalPlayer = Players.LocalPlayer
 
-if not LocalPlayer then
-    print("[STAND] No LocalPlayer")
+if not LocalPlayer then return end
+
+local function DetectDaHood()
+    local detected = false
+    
+    pcall(function()
+        if ReplicatedStorage:FindFirstChild("MainEvent") then
+            detected = true
+        end
+    end)
+    
+    if not detected then
+        pcall(function()
+            local players = Players:GetPlayers()
+            if #players > 0 then
+                local char = players[1].Character
+                if char and char:FindFirstChildOfClass("Humanoid") then
+                    detected = true
+                end
+            end
+        end)
+    end
+    
+    return detected
+end
+
+if not DetectDaHood() then
+    print("[STAND] Da Hood not detected")
     return
 end
 
@@ -56,7 +76,8 @@ local Config = {
 }
 
 local RemoteManager = {
-    Primary = nil,
+    MainEvent = nil,
+    ToolRemote = nil,
     Found = false
 }
 
@@ -123,23 +144,24 @@ function RemoteManager:Scan()
         local mainEvent = ReplicatedStorage:FindFirstChild("MainEvent")
         if mainEvent and (mainEvent:IsA("RemoteEvent") or mainEvent:IsA("RemoteFunction")) then
             if typeof(mainEvent.FireServer) == "function" then
-                self.Primary = mainEvent
+                self.MainEvent = mainEvent
                 self.Found = true
                 print("[REMOTE] Found MainEvent")
-                return
             end
         end
-        
-        local keywords = {"attack", "damage", "hit", "punch", "combat", "action"}
+    end)
+    
+    if not self.Found then
+        local keywords = {"attack", "damage", "hit", "punch", "combat", "action", "event"}
         local function scan(parent, depth)
-            if depth > 8 then return end
+            if depth > 8 or self.Found then return end
             pcall(function()
                 for _, obj in pairs(parent:GetChildren()) do
                     if (obj:IsA("RemoteEvent") or obj:IsA("RemoteFunction")) and typeof(obj.FireServer) == "function" then
                         local name = obj.Name:lower()
                         for _, kw in ipairs(keywords) do
                             if name:find(kw) then
-                                self.Primary = obj
+                                self.MainEvent = obj
                                 self.Found = true
                                 print("[REMOTE] Found " .. obj.Name)
                                 return
@@ -151,14 +173,11 @@ function RemoteManager:Scan()
             end)
         end
         scan(ReplicatedStorage, 0)
-    end)
+    end
 end
 
 local function CreateStand()
-    print("[STAND:CREATE] Starting stand creation")
-    
     if State.StandModel then
-        print("[STAND:CREATE] Destroying existing stand model")
         pcall(function() State.StandModel:Destroy() end)
     end
     
@@ -166,13 +185,9 @@ local function CreateStand()
     pcall(function()
         model = Instance.new("Model", workspace)
         model.Name = "Stand_" .. LocalPlayer.Name
-        print("[STAND:CREATE] Model created: " .. model.Name)
     end)
     
-    if not model then 
-        print("[STAND:CREATE] FAILED - Could not create model")
-        return 
-    end
+    if not model then return end
     
     local root = nil
     pcall(function()
@@ -183,18 +198,13 @@ local function CreateStand()
         root.CanCollide = false
         root.Material = Enum.Material.ForceField
         root.Color = Color3.fromRGB(0, 255, 255)
-        print("[STAND:CREATE] Root part created")
     end)
     
-    if not root then 
-        print("[STAND:CREATE] FAILED - Could not create root part")
-        return 
-    end
+    if not root then return end
     
     pcall(function()
         local hum = Instance.new("Humanoid", model)
         hum.DisplayDistanceType = Enum.HumanoidDisplayDistanceType.None
-        print("[STAND:CREATE] Humanoid created")
     end)
     
     pcall(function()
@@ -202,20 +212,17 @@ local function CreateStand()
         bp.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
         bp.P = 25000
         bp.D = 1200
-        print("[STAND:CREATE] BodyPosition created")
     end)
     
     pcall(function()
         local bg = Instance.new("BodyGyro", root)
         bg.MaxTorque = Vector3.new(math.huge, math.huge, math.huge)
         bg.P = 25000
-        print("[STAND:CREATE] BodyGyro created")
     end)
     
     pcall(function()
         if typeof(root.SetNetworkOwner) == "function" then
             root:SetNetworkOwner(LocalPlayer)
-            print("[STAND:CREATE] Network owner set")
         end
     end)
     
@@ -250,31 +257,23 @@ local function CreateStand()
             end)
         end
     end)
-    
-    print("[STAND:CREATE] SUCCESS - Stand created and follow loop started")
 end
 
 local function DestroyStand()
-    print("[STAND:DESTROY] Starting stand destruction")
-    
     if State.FollowConnection then
         pcall(function() State.FollowConnection:Disconnect() end)
         State.FollowConnection = nil
-        print("[STAND:DESTROY] Follow connection disconnected")
     end
     
     if State.StandModel then
         pcall(function() State.StandModel:Destroy() end)
         State.StandModel = nil
         State.StandRoot = nil
-        print("[STAND:DESTROY] Stand model destroyed")
     end
-    
-    print("[STAND:DESTROY] SUCCESS - Stand destroyed")
 end
 
 local function Attack(target)
-    if not RemoteManager.Primary or not IsPlayerValid(target) then return end
+    if not RemoteManager.MainEvent or not IsPlayerValid(target) then return end
     
     local now = tick()
     if now - State.LastAttackTime < State.AttackSpeed then return end
@@ -291,22 +290,24 @@ local function Attack(target)
     if not myRoot or not targetRoot then return end
     
     pcall(function()
-        RemoteManager.Primary:FireServer("Combat", "Punch", myChar, targetChar, targetRoot.Position)
+        RemoteManager.MainEvent:FireServer("Combat", "Punch", myChar, targetChar, targetRoot.Position)
+    end)
+    
+    pcall(function()
+        RemoteManager.MainEvent:FireServer("Punch", targetChar)
+    end)
+    
+    pcall(function()
+        RemoteManager.MainEvent:FireServer(targetChar, "Punch")
     end)
 end
 
-local function HandleCommand(msg)
-    if not msg or msg == "" then 
-        print("[CMD:PARSE] Empty message, ignoring")
-        return 
-    end
+local function ProcessCommand(msg)
+    if not msg or msg == "" then return end
     
     msg = msg:match("^%s*(.-)%s*$") or msg
     
-    if msg:sub(1, 1) ~= "." then 
-        print("[CMD:PARSE] No prefix, ignoring: " .. msg)
-        return 
-    end
+    if msg:sub(1, 1) ~= "." then return end
     
     local cmd = msg:sub(2):lower()
     local args = {}
@@ -314,101 +315,65 @@ local function HandleCommand(msg)
         table.insert(args, arg)
     end
     
-    if #args == 0 then 
-        print("[CMD:PARSE] No args after prefix, ignoring")
-        return 
-    end
+    if #args == 0 then return end
     
     local command = args[1]
     
-    print("[CMD:DISPATCH] Command: " .. command .. " | Full message: " .. msg)
-    
     if command == "s" or command == "summon" then
-        print("[CMD:SUMMON] Summon command received")
-        print("[CMD:SUMMON] Current state - IsSummoned: " .. tostring(State.IsSummoned))
-        
         if not State.IsSummoned then
-            print("[CMD:SUMMON] Executing summon...")
             State.IsSummoned = true
             State.Target = nil
             State.AutoKill = false
-            print("[CMD:SUMMON] State updated - IsSummoned: true")
-            
             CreateStand()
-            
             Notify("STAND", "Summoned")
-            print("[CMD:SUMMON] SUCCESS - Stand summoned, notification sent")
-        else
-            print("[CMD:SUMMON] IGNORED - Already summoned")
         end
     
     elseif command == "uns" or command == "unsummon" or command == "vanish" then
-        print("[CMD:VANISH] Vanish command received")
-        print("[CMD:VANISH] Current state - IsSummoned: " .. tostring(State.IsSummoned))
-        
         if State.IsSummoned then
-            print("[CMD:VANISH] Executing vanish...")
             State.IsSummoned = false
             State.AutoKill = false
             State.Target = nil
-            print("[CMD:VANISH] State updated - IsSummoned: false")
-            
             DestroyStand()
-            
             Notify("STAND", "Vanished")
-            print("[CMD:VANISH] SUCCESS - Stand vanished, notification sent")
-        else
-            print("[CMD:VANISH] IGNORED - Not summoned")
         end
     
     elseif command == "autokill" then
-        print("[CMD:AUTOKILL] AutoKill command received")
-        
         if not State.IsSummoned then
             Notify("ERROR", "Summon stand first")
-            print("[CMD:AUTOKILL] REJECTED - Stand not summoned")
             return
         end
         
         local targetName = args[2]
         if not targetName then
             Notify("ERROR", "Usage: .autokill <player>")
-            print("[CMD:AUTOKILL] REJECTED - No target name provided")
             return
         end
         
         local target = GetPlayer(targetName)
         if not target or not IsPlayerValid(target) then
             Notify("ERROR", "Player not found")
-            print("[CMD:AUTOKILL] REJECTED - Target player invalid: " .. tostring(targetName))
             return
         end
         
         State.Target = target
         State.AutoKill = true
         Notify("AUTOKILL", "Targeting " .. target.Name)
-        print("[CMD:AUTOKILL] SUCCESS - AutoKill enabled, Target: " .. target.Name)
     
     elseif command == "stop" or command == "unstop" then
-        print("[CMD:STOP] Stop command received")
         State.AutoKill = false
         State.Target = nil
         Notify("SYSTEM", "Stopped")
-        print("[CMD:STOP] SUCCESS - AutoKill disabled")
     
     elseif command == "bring" then
-        print("[CMD:BRING] Bring command received")
         local targetName = args[2]
         if not targetName then
             Notify("ERROR", "Usage: .bring <player>")
-            print("[CMD:BRING] REJECTED - No target name provided")
             return
         end
         
         local target = GetPlayer(targetName)
         if not target or not IsPlayerValid(target) then
             Notify("ERROR", "Player not found")
-            print("[CMD:BRING] REJECTED - Target player invalid: " .. tostring(targetName))
             return
         end
         
@@ -417,20 +382,15 @@ local function HandleCommand(msg)
         
         if targetRoot and myRoot then
             pcall(function()
-                targetRoot.CFrame = myRoot.CFrame
+                targetRoot.CFrame = myRoot.CFrame + Vector3.new(0, 0, 3)
             end)
             Notify("BRING", "Brought " .. target.Name)
-            print("[CMD:BRING] SUCCESS - Brought " .. target.Name)
-        else
-            print("[CMD:BRING] REJECTED - Root parts invalid")
         end
     
     elseif command == "to" or command == "tp" or command == "goto" then
-        print("[CMD:TP] Teleport command received")
         local locName = args[2]
         if not locName or not Config.Locations[locName] then
             Notify("ERROR", "Location not found")
-            print("[CMD:TP] REJECTED - Location invalid: " .. tostring(locName))
             return
         end
         
@@ -440,51 +400,41 @@ local function HandleCommand(msg)
                 myRoot.CFrame = CFrame.new(Config.Locations[locName])
             end)
             Notify("TP", "Teleported to " .. locName)
-            print("[CMD:TP] SUCCESS - Teleported to " .. locName)
-        else
-            print("[CMD:TP] REJECTED - Player root invalid")
         end
-    else
-        print("[CMD:DISPATCH] Unknown command: " .. command)
     end
 end
 
-print("[BOOT] Initializing Da Hood Stand Script...")
+local function SetupChatHook()
+    local tcsConnected = false
+    local chattedConnected = false
+    
+    pcall(function()
+        local TextChatService = game:GetService("TextChatService")
+        if TextChatService and TextChatService.OnIncomingMessage then
+            TextChatService.OnIncomingMessage:Connect(function(message)
+                if message and message.TextSource and message.TextSource.UserId == LocalPlayer.UserId then
+                    ProcessCommand(message.Text)
+                end
+            end)
+            tcsConnected = true
+        end
+    end)
+    
+    pcall(function()
+        if LocalPlayer and LocalPlayer.Chatted then
+            LocalPlayer.Chatted:Connect(function(msg)
+                ProcessCommand(msg)
+            end)
+            chattedConnected = true
+        end
+    end)
+    
+    return tcsConnected or chattedConnected
+end
 
 RemoteManager:Scan()
 
-print("[CHAT] Setting up chat hooks SYNCHRONOUSLY...")
-
-pcall(function()
-    local TextChatService = game:GetService("TextChatService")
-    if TextChatService then
-        print("[CHAT:TCS] TextChatService found - connecting OnIncomingMessage")
-        TextChatService.OnIncomingMessage:Connect(function(message)
-            if message and message.TextSource and message.TextSource.UserId == LocalPlayer.UserId then
-                print("[CHAT:TCS] Message received: " .. tostring(message.Text))
-                HandleCommand(message.Text)
-            end
-        end)
-        print("[CHAT:TCS] TextChatService hook connected")
-    else
-        print("[CHAT:TCS] TextChatService not available")
-    end
-end)
-
-pcall(function()
-    if LocalPlayer then
-        print("[CHAT:CHATTED] LocalPlayer found - connecting Chatted signal")
-        LocalPlayer.Chatted:Connect(function(msg)
-            print("[CHAT:CHATTED] Message received: " .. tostring(msg))
-            HandleCommand(msg)
-        end)
-        print("[CHAT:CHATTED] LocalPlayer.Chatted hook connected")
-    else
-        print("[CHAT:CHATTED] LocalPlayer not available")
-    end
-end)
-
-print("[CHAT] Chat hooks established")
+SetupChatHook()
 
 if State.AutoKillConnection then
     pcall(function() State.AutoKillConnection:Disconnect() end)
@@ -497,7 +447,6 @@ State.AutoKillConnection = RunService.Heartbeat:Connect(function()
         State.AutoKill = false
         State.Target = nil
         Notify("AUTOKILL", "Target lost")
-        print("[AUTOKILL] Target lost")
         return
     end
     
@@ -507,7 +456,6 @@ State.AutoKillConnection = RunService.Heartbeat:Connect(function()
     if not targetRoot or not myRoot then
         State.AutoKill = false
         State.Target = nil
-        print("[AUTOKILL] Root parts invalid")
         return
     end
     
@@ -517,7 +465,6 @@ State.AutoKillConnection = RunService.Heartbeat:Connect(function()
         State.AutoKill = false
         State.Target = nil
         Notify("AUTOKILL", "Too far")
-        print("[AUTOKILL] Target too far: " .. tostring(distance))
         return
     end
     
@@ -535,18 +482,15 @@ end)
 pcall(function()
     if LocalPlayer then
         LocalPlayer.CharacterAdded:Connect(function()
-            print("[CHARACTER] Respawn detected")
             task.wait(1)
             State.AutoKill = false
             State.Target = nil
             if State.IsSummoned then
-                print("[CHARACTER] Recreating stand after respawn")
                 CreateStand()
             end
         end)
-        print("[CHARACTER] Respawn hook established")
     end
 end)
 
-print("[STAND] Ready - Type '.s' to summon")
-Notify("STAND", "Loaded - Type '.s' to summon")
+print("[STAND] Ready")
+Notify("STAND", "Loaded")
