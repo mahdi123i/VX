@@ -316,15 +316,30 @@ local function ExecuteCommand(message)
     end
 end
 
--- Track Owner's Chat
+-- Function to connect chat listener for owner
+local function ConnectOwnerChat(ownerPlayer)
+    if ownerPlayer then
+        ownerPlayer.Chatted:Connect(function(message)
+            ExecuteCommand(message)
+        end)
+        warn("Chat listener connected for owner: " .. ownerPlayer.Name)
+    end
+end
+
+-- Check if owner is already in game
 local ownerPlayer = Services.Players:FindFirstChild(getgenv().Owner)
 if ownerPlayer then
-    ownerPlayer.Chatted:Connect(function(message)
-        ExecuteCommand(message)
-    end)
+    ConnectOwnerChat(ownerPlayer)
 else
-    warn("Owner not found in game.")
+    warn("Owner not found in game. Waiting for owner to join...")
 end
+
+-- Listen for owner joining
+Services.Players.PlayerAdded:Connect(function(player)
+    if player.Name == getgenv().Owner then
+        ConnectOwnerChat(player)
+    end
+end)
 
 -- Ensure script runs after character loads
 LocalPlayer.CharacterAdded:Connect(function(character)
