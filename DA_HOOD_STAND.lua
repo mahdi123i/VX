@@ -241,7 +241,7 @@ local function SetIntangible(state)
         for _, part in pairs(LocalPlayer.Character:GetChildren()) do
             if part:IsA("BasePart") then
                 part.CanCollide = not state
-                part.Transparency = 0  -- Ensure visibility
+                part.Transparency = state and 1 or 0  -- Make transparent when intangible
             end
         end
         if LocalPlayer.Character:FindFirstChild("Humanoid") then
@@ -285,11 +285,11 @@ local function ExecuteCommand(message)
     if cmd == ".s" then
         Config.StandMode = true
         lastOwnerPosition = nil  -- Reset for fresh tracking
-        SetIntangible(true)  -- Make intangible, freeze animations
-        warn("Stand Mode Activated: Following Owner (Frozen, No Animations).")
+        SetIntangible(true)  -- Make intangible, freeze animations, transparent
+        warn("Stand Mode Activated: Following Owner (Frozen, No Animations, Transparent).")
     elseif cmd == ".uns" then
         Config.StandMode = false
-        SetIntangible(false)  -- Restore collisions and animations
+        SetIntangible(false)  -- Restore collisions and animations, visible
         MoveToSafe()
         warn("Stand Mode Deactivated: Moving to safe position.")
     elseif cmd == "rj!" then
