@@ -49,6 +49,20 @@ local Config = {
     AutoReload = false
 }
 
+-- AUG shop button metadata (CFrame, size, rotation)
+local AUG_BUTTON_CFRAME = CFrame.new(
+    -273.048187, 49.3634033, -213.312408,
+    -1, 0, 0,
+    0, 1, -8.63220121e-05,
+    -0, -8.63220121e-05, -1
+)
+
+local AUG_BUTTON_SIZE = Vector3.new(
+    4,
+    0.19999997317790985,
+    1.3999998569488525
+)
+
 local SafePosition = Vector3.new(211.795, 48.394, -595)
 
 local isOwnerTouching = false
@@ -299,7 +313,8 @@ local function SetIntangible(state)
         for _, part in pairs(LocalPlayer.Character:GetChildren()) do
             if part:IsA("BasePart") then
                 part.CanCollide = not state
-                part.Transparency = state and 1 or 0
+                part.Transparency = 0
+                part.Anchored = false
             end
         end
         if LocalPlayer.Character:FindFirstChild("Humanoid") then
@@ -312,7 +327,55 @@ local function SetIntangible(state)
     end
 end
 
+local function EnsureVisible()
+    if LocalPlayer.Character then
+        for _, part in pairs(LocalPlayer.Character:GetChildren()) do
+            if part:IsA("BasePart") then
+                part.Transparency = 0
+                part.Anchored = false
+            end
+        end
+        local humanoid = LocalPlayer.Character:FindFirstChild("Humanoid")
+        if humanoid then
+            humanoid.PlatformStand = false
+        end
+    end
+end
+
 -- DA HOOD GUN FUNCTIONS
+
+local function BuyAugViaTouch()
+    local character = LocalPlayer.Character
+    if not character then return false end
+
+    local hrp = character:FindFirstChild("HumanoidRootPart")
+    if not hrp then return false end
+
+    EnsureVisible()
+
+    local touchPart = Instance.new("Part")
+    touchPart.Size = AUG_BUTTON_SIZE
+    touchPart.CFrame = AUG_BUTTON_CFRAME
+    touchPart.Anchored = true
+    touchPart.Transparency = 1
+    touchPart.CanCollide = false
+    touchPart.Name = "AUG_TOUCH_PROXY"
+    touchPart.Parent = workspace
+
+    task.wait(0.05)
+    firetouchinterest(hrp, touchPart, 0)
+    task.wait(0.1)
+    firetouchinterest(hrp, touchPart, 1)
+
+    task.delay(0.25, function()
+        if touchPart and touchPart.Parent then
+            touchPart:Destroy()
+        end
+    end)
+
+    warn("AUG purchase triggered via touch proxy")
+    return true
+end
 
 local function BuyGunDaHood(gunType)
     local gunData = GunConfig[gunType]
@@ -321,34 +384,41 @@ local function BuyGunDaHood(gunType)
         return false
     end
     
+    local success = false
+
+    if gunType == "aug" then
+        success = BuyAugViaTouch() or success
+    end
+
     -- Da Hood uses MainEvent remote for buying items
     local MainEvent = Services.ReplicatedStorage:FindFirstChild("MainEvent")
-    if not MainEvent then
-        warn("MainEvent not found! Cannot buy gun.")
-        return false
+    if MainEvent then
+        -- Method 1: Standard buy format
+        success = pcall(function()
+            MainEvent:FireServer("BuyItem", gunData.ItemName)
+        end) or success
+
+        -- Method 2: Try with item table
+        success = pcall(function()
+            MainEvent:FireServer("BuyItem", {["Item"] = gunData.ItemName})
+        end) or success
+
+        -- Method 3: Try ToggleItem (some games use this)
+        success = pcall(function()
+            MainEvent:FireServer("ToggleItem", gunData.ItemName)
+        end) or success
+    else
+        warn("MainEvent not found! Touch-based buy only.")
     end
-    
-    -- Try multiple buy formats for Da Hood
-    local success = false
-    
-    -- Method 1: Standard buy format
-    pcall(function()
-        MainEvent:FireServer("BuyItem", gunData.ItemName)
-    end)
-    
-    -- Method 2: Try with item table
-    pcall(function()
-        MainEvent:FireServer("BuyItem", {["Item"] = gunData.ItemName})
-    end)
-    
-    -- Method 3: Try ToggleItem (some games use this)
-    pcall(function()
-        MainEvent:FireServer("ToggleItem", gunData.ItemName)
-    end)
-    
-    warn("Attempted to buy " .. gunData.DisplayName .. " using multiple methods")
-    Config.CurrentGun = gunType
-    return true
+
+    if success then
+        warn("Attempted to buy " .. gunData.DisplayName .. " using multiple methods")
+        Config.CurrentGun = gunType
+        return true
+    end
+
+    warn("Failed to trigger purchase for " .. gunData.DisplayName)
+    return false
 end
 
 local function EquipGun(gunType)
