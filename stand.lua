@@ -32,6 +32,7 @@ for k, v in pairs(perf) do
 end
 local defaultConfig = {}
 local defaultConfigCaptured = false
+local stand2Active = false
 
 local function standWait(base)
     if stand2Active then
