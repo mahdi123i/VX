@@ -3813,7 +3813,10 @@ local function tryPurchaseVehicle()
 
     withNoclip(function()
         safeTeleportToShop(root, shopBase)
-        getgenv().fireclickdetector(clickDetector)
+        local fireClick = getgenv().fireclickdetector or fireclickdetector
+        if fireClick then
+            fireClick(clickDetector)
+        end
         task.wait(0.2)
     end)
 
