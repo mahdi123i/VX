@@ -1,3 +1,6 @@
+if not getgenv then
+    getgenv = function() return _G end
+end
 
 local Owner = "Mahdirml123i"
 local BlackScreen = false
