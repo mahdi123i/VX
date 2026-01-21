@@ -346,6 +346,15 @@ local disableStand2
 local activatePowerMode
 local deactivatePowerMode
 
+-- Forward declarations - these will be properly defined later
+activatePowerMode = function()
+    -- Placeholder - will be overridden
+end
+
+deactivatePowerMode = function()
+    -- Placeholder - will be overridden
+end
+
 local targetPlayer = nil
 local lastOwnerPosition = nil
 local shootRunning = true
