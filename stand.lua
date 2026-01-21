@@ -1,5 +1,20 @@
+-- Safe environment initialization for loadstring execution
 if not getgenv then
     getgenv = function() return _G end
+end
+
+-- Polyfill missing executor functions
+if not setfpscap then
+    setfpscap = function() end
+end
+if not setfflag then
+    setfflag = function() end
+end
+if not replicatesignal then
+    replicatesignal = function() end
+end
+if not fireclickdetector then
+    fireclickdetector = function() end
 end
 
 local Owner = "Mahdirml123i"
