@@ -3823,80 +3823,93 @@ local function tryPurchaseVehicle()
     return true
 end
 
--- Vehicle Mode Handler - Frame-based flight loop
-local vehicleSeated = false
-local vehicleOwnerSeated = false
+-- Vehicle Mode Handler - Stand drives cart via HRP movement
+local vehicleVelocityCleared = false
 
 task.spawn(function()
-    while true do
-        RunService.RenderStepped:Wait()
-        if not vehicleMode or not gotoPlayer then
-            vehicleSeated = false
-            vehicleOwnerSeated = false
-        else
+    while task.wait(0) do
+        if vehicleMode and gotoPlayer and (gotoCFrame or gotoTarget) then
             local char = LocalPlayer and LocalPlayer.Character
+            local hrp = char and char:FindFirstChild("HumanoidRootPart")
+            local hum = char and char:FindFirstChildOfClass("Humanoid")
             local ownerChar = gotoPlayer and gotoPlayer.Character
-            if char and ownerChar then
-                local hrp = char:FindFirstChild("HumanoidRootPart")
-                local hum = char:FindFirstChildOfClass("Humanoid")
-                local oHrp = ownerChar:FindFirstChild("HumanoidRootPart")
-                if hrp and hum and oHrp then
-                    local dest = getVehicleDestinationCFrame()
-                    if dest then
-                        local veh = findVehicleModel()
-                        if not veh then
-                            vehicleSeated = false
-                            if (hrp.Position - vehiclePickupPos).Magnitude > 4 then
-                                hrp.CFrame = CFrame.new(vehiclePickupPos + Vector3.new(0, 3, 0))
-                            else
-                                tryPurchaseVehicle()
-                            end
-                        else
-                            local dSeat, pSeat = getVehicleSeats(veh)
-                            local vRoot = getVehicleRootPart(veh) or dSeat or hrp
-                            if dSeat and not vehicleSeated then
-                                if (not dSeat.Occupant or dSeat.Occupant == hum) and hum.SeatPart ~= dSeat then
-                                    vRoot.CFrame = vehicleSeatCFrame
-                                    vRoot.AssemblyLinearVelocity = Vector3.zero
-                                    vRoot.AssemblyAngularVelocity = Vector3.zero
-                                    pcall(function() dSeat:Sit(hum) end)
-                                elseif hum.SeatPart == dSeat then
-                                    vehicleSeated = true
-                                end
-                            end
-                            if vehicleSeated then
-                                local oHum = ownerChar:FindFirstChildOfClass("Humanoid")
-                                vehicleOwnerSeated = pSeat and oHum and pSeat.Occupant == oHum
-                                if not vehicleOwnerSeated then
-                                    local tgt = oHrp.CFrame * CFrame.new(0, 1, 4)
-                                    if pSeat then
-                                        local off = vRoot.CFrame:ToObjectSpace(pSeat.CFrame)
-                                        tgt = (oHrp.CFrame * CFrame.new(0, 0, 2)) * off:Inverse()
-                                    end
-                                    vRoot.CFrame = tgt
-                                    vRoot.AssemblyLinearVelocity = Vector3.zero
-                                    vRoot.AssemblyAngularVelocity = Vector3.zero
-                                else
-                                    if (vRoot.Position - dest.Position).Magnitude > 3 then
-                                        vRoot.CFrame = dest
-                                        vRoot.AssemblyLinearVelocity = Vector3.zero
-                                        vRoot.AssemblyAngularVelocity = Vector3.zero
-                                    else
-                                        vehicleMode = false
-                                        gotoPlayer = nil
-                                        gotoCFrame = nil
-                                        gotoTarget = nil
-                                        vehicleModel = nil
-                                        vehicleSeated = false
-                                        vehicleOwnerSeated = false
-                                        voiding = true
-                                    end
-                                end
-                            end
-                        end
-                    end
+            local oHrp = ownerChar and ownerChar:FindFirstChild("HumanoidRootPart")
+            
+            if not (hrp and hum and oHrp) then continue end
+            
+            local dest = getVehicleDestinationCFrame()
+            if not dest then continue end
+            
+            local veh = findVehicleModel()
+            if not veh then
+                vehicleVelocityCleared = false
+                if (hrp.Position - vehiclePickupPos).Magnitude > 4 then
+                    hrp.CFrame = CFrame.new(vehiclePickupPos + Vector3.new(0, 3, 0))
+                else
+                    tryPurchaseVehicle()
+                end
+                continue
+            end
+            
+            -- Unanchor wheels so cart can fly
+            local wheelNames = {LBWheel=1, LTWheel=1, RBWheel=1, RTWheel=1, L_Rotator=1, R_Rotator=1}
+            for _, part in ipairs(veh:GetDescendants()) do
+                if part:IsA("BasePart") and wheelNames[part.Name] then
+                    part.Anchored = false
+                    part.CanCollide = false
                 end
             end
+            
+            local dSeat, pSeat = getVehicleSeats(veh)
+            local vRoot = getVehicleRootPart(veh) or dSeat or hrp
+            
+            -- Step 1: Sit in driver seat if not seated
+            if dSeat and hum.SeatPart ~= dSeat then
+                vehicleVelocityCleared = false
+                if not dSeat.Occupant or dSeat.Occupant == hum then
+                    vRoot.CFrame = vehicleSeatCFrame
+                    vRoot.AssemblyLinearVelocity = Vector3.zero
+                    vRoot.AssemblyAngularVelocity = Vector3.zero
+                    pcall(function() dSeat:Sit(hum) end)
+                end
+                continue
+            end
+            
+            -- Clear velocities once after seating
+            if not vehicleVelocityCleared then
+                hrp.AssemblyLinearVelocity = Vector3.zero
+                hrp.AssemblyAngularVelocity = Vector3.zero
+                vRoot.AssemblyLinearVelocity = Vector3.zero
+                vRoot.AssemblyAngularVelocity = Vector3.zero
+                vehicleVelocityCleared = true
+            end
+            
+            -- Check if owner is seated in passenger seat
+            local oHum = ownerChar:FindFirstChildOfClass("Humanoid")
+            local ownerSeated = pSeat and oHum and pSeat.Occupant == oHum
+            
+            -- MOVE THE STAND's HRP (cart follows via VehicleSeat physics)
+            if not ownerSeated then
+                -- Follow owner: position Stand behind and above owner
+                local targetPos = oHrp.CFrame * CFrame.new(0, 2, 5)
+                hrp.CFrame = targetPos
+            else
+                -- Owner seated: fly Stand to destination
+                if (hrp.Position - dest.Position).Magnitude > 3 then
+                    hrp.CFrame = dest
+                else
+                    -- Arrived at destination
+                    vehicleMode = false
+                    gotoPlayer = nil
+                    gotoCFrame = nil
+                    gotoTarget = nil
+                    vehicleModel = nil
+                    vehicleVelocityCleared = false
+                    voiding = true
+                end
+            end
+        else
+            vehicleVelocityCleared = false
         end
     end
 end)
