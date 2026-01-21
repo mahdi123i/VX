@@ -1,18 +1,18 @@
-Script = "Get Moon Stand for free at discord.gg/mfyCBWWExF"
+local Script = "Get Moon Stand for free at discord.gg/mfyCBWWExF"
 
-Owner = "Mahdirml123i"
-BlackScreen = false
-DisableRendering = false
-FPSCap = 60
-Guns = {"aug", "rifle"}
-EquipGunCount = 2
-DisabledGuns = {flintlock = true}
-SkipAmmoFor = {["[Flintlock]"] = true}
-AmmoPurchaseCount = 10
-ArmorThreshold = 80
-ArmorRecheckDelay = LowLagMode and 3 or 1.5
-LowLagMode = true
-perf = {
+local Owner = "Mahdirml123i"
+local BlackScreen = false
+local DisableRendering = false
+local FPSCap = 60
+local Guns = {"aug", "rifle"}
+local EquipGunCount = 2
+local DisabledGuns = {flintlock = true}
+local SkipAmmoFor = {["[Flintlock]"] = true}
+local AmmoPurchaseCount = 10
+local ArmorThreshold = 80
+local ArmorRecheckDelay = LowLagMode and 3 or 1.5
+local LowLagMode = true
+local perf = {
     loop = LowLagMode and 0.05 or 0,
     combat = LowLagMode and 0.03 or 0,
     void = LowLagMode and 0.2 or 0,
@@ -26,12 +26,12 @@ perf = {
     shoot = LowLagMode and 0.03 or 0,
 }
 
-defaultPerf = {}
+local defaultPerf = {}
 for k, v in pairs(perf) do
     defaultPerf[k] = v
 end
-defaultConfig = {}
-defaultConfigCaptured = false
+local defaultConfig = {}
+local defaultConfigCaptured = false
 
 local function standWait(base)
     if stand2Active then
@@ -42,22 +42,21 @@ end
 
 if not game:IsLoaded() then game.Loaded:Wait() end
 
-player = game.Players.LocalPlayer
+local player = game.Players.LocalPlayer
 
-Players = game:GetService("Players")
-LocalPlayer = Players.LocalPlayer
-Player = LocalPlayer
-UserInputService = game:GetService("UserInputService")
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local UserInputService = game:GetService("UserInputService")
 
-Bots = {}
+local Bots = {}
 
 Bots[LocalPlayer.Name] = LocalPlayer.Name
 
-player = Players.LocalPlayer
-Character = Player.Character or Player.CharacterAdded:Wait()
-currentGunIndex = 1
+local Player = Players.LocalPlayer
+local Character = Player.Character or Player.CharacterAdded:Wait()
+local currentGunIndex = 1
 
-gunData = {
+local gunData = {
     rifle = {
         toolName = "[Rifle]",
         shopName = "[Rifle] - $1694"
@@ -80,13 +79,13 @@ gunData = {
     },
 }
 
-RunService = game:GetService("RunService")
+local RunService = game:GetService("RunService")
 
 if DisableRendering then
     RunService:Set3dRenderingEnabled(false)
 end
 
-Lighting = game:GetService("Lighting")
+local Lighting = game:GetService("Lighting")
 
 Lighting.GlobalShadows = false
 
@@ -100,39 +99,38 @@ workspace.StreamingEnabled = true
 
 getgenv().enabled = false
 getgenv().enabled1 = false
-auraspeed = 11
-auradistance = 4
-auraangle = math.random() * math.pi * 2
-standHomeName = Owner
-stand2Active = false
-stand2TargetName = nil
-stand2TargetUserId = nil
-stand2CurrentTarget = nil
-ownerLastCFrame = nil
-powerModeActive = false
-buyingArmorInProgress = false
-autoArmorEnabled = true
-autoFireArmorEnabled = false -- Don't auto-buy fire armor.
-lastArmorPurchase = 0
+local auraspeed = 11
+local auradistance = 4
+local auraangle = math.random() * math.pi * 2
+local standHomeName = Owner
+local stand2Active = false
+local stand2TargetName = nil
+local stand2TargetUserId = nil
+local stand2CurrentTarget = nil
+local powerModeActive = false
+local buyingArmorInProgress = false
+local autoArmorEnabled = true
+local autoFireArmorEnabled = false -- Don't auto-buy fire armor.
+local lastArmorPurchase = 0
 
-lockedTarget = nil
-grabCheckEnabled = true
-koCheckEnabled = true
-buyingInProgress = false
-buyingGunInProgress = false
-buyingMaskInProgress = false
-buyingVehicleInProgress = false
-teleporting = false
-autodrop = false
-ragebottargets = {}
-currentTargetIndex = 1
-fakepositionconnection = nil
+local lockedTarget = nil
+local grabCheckEnabled = true
+local koCheckEnabled = true
+local buyingInProgress = false
+local buyingGunInProgress = false
+local buyingMaskInProgress = false
+local buyingVehicleInProgress = false
+local teleporting = false
+local autodrop = false
+local ragebottargets = {}
+local currentTargetIndex = 1
+local fakepositionconnection = nil
 
 -- Global hard stop latch (set by .v). When true, combat/movement logic should not run.
-hardStop = false
+local hardStop = false
 
 -- Loop targeting support for .l / .lk
-shouldSwitch = false
+local shouldSwitch = false
 local function isValidLoopTarget(plr)
     if not plr or not plr:IsDescendantOf(game) then
         return false
@@ -154,21 +152,23 @@ local function isValidLoopTarget(plr)
     end
     return true
 end
-automaskenabled = false
-trashtalkactive = false
-fpactive = false
-refreshingfakeposition = false
-didRefreshOnDeath = false
-autoSaveEnabled = false
-autoSavePosition = Vector3.new(-490.6, 93.412, -91.7)
+local automaskenabled = false
+local trashtalkactive = false
+local fpactive = false
+local refreshingfakeposition = false
+local didRefreshOnDeath = false
+local autoSaveEnabled = false
+local autoSavePosition = Vector3.new(-490.6, 93.412, -91.7)
 
-RunService = game:GetService("RunService")
-player = game.Players.LocalPlayer
-character = game.Players.LocalPlayer.Character
-ReplicatedStorage = game:GetService('ReplicatedStorage')
-Workspace = game:GetService("Workspace")
-camera = workspace.CurrentCamera
-_, y, r = camera.CFrame:ToOrientation()
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local player = game.Players.LocalPlayer
+local character = game.Players.LocalPlayer.Character
+local LocalPlayer = Players.LocalPlayer
+local ReplicatedStorage = game:GetService('ReplicatedStorage')
+local Workspace = game:GetService("Workspace")
+local camera = workspace.CurrentCamera
+local _, y, r = camera.CFrame:ToOrientation()
 
 -- Avoid infinite yield warnings from missing objects in some games.
 local function ensureChild(parent, className, name)
@@ -205,9 +205,9 @@ getgenv().protectedwhitelist = {}
 
 getgenv().protectedwhitelist[Owner] = true
 
-basePosition = Vector3.new(87240, 29628, -482290)
+local basePosition = Vector3.new(87240, 29628, -482290)
 
-whitelistZone = Instance.new("Part")
+local whitelistZone = Instance.new("Part")
 whitelistZone.Name = "WhitelistBeacon"
 whitelistZone.Anchored = true
 whitelistZone.CanCollide = true
@@ -216,7 +216,7 @@ whitelistZone.Size = Vector3.new(30, 10, 30)
 whitelistZone.Position = basePosition
 whitelistZone.Parent = workspace
 
-wallFront = Instance.new("Part")
+local wallFront = Instance.new("Part")
 wallFront.Name = "WhitelistBeacon_WallFront"
 wallFront.Anchored = true
 wallFront.CanCollide = true
@@ -225,7 +225,7 @@ wallFront.Size = Vector3.new(32, 10, 1)
 wallFront.Position = basePosition + Vector3.new(0, 5, 15.5)
 wallFront.Parent = workspace
 
-wallBack = Instance.new("Part")
+local wallBack = Instance.new("Part")
 wallBack.Name = "WhitelistBeacon_WallBack"
 wallBack.Anchored = true
 wallBack.CanCollide = true
@@ -234,7 +234,7 @@ wallBack.Size = Vector3.new(32, 10, 1)
 wallBack.Position = basePosition + Vector3.new(0, 5, -15.5)
 wallBack.Parent = workspace
 
-wallLeft = Instance.new("Part")
+local wallLeft = Instance.new("Part")
 wallLeft.Name = "WhitelistBeacon_WallLeft"
 wallLeft.Anchored = true
 wallLeft.CanCollide = true
@@ -243,7 +243,7 @@ wallLeft.Size = Vector3.new(1, 10, 30)
 wallLeft.Position = basePosition + Vector3.new(-15.5, 5, 0)
 wallLeft.Parent = workspace
 
-wallRight = Instance.new("Part")
+local wallRight = Instance.new("Part")
 wallRight.Name = "WhitelistBeacon_WallRight"
 wallRight.Anchored = true
 wallRight.CanCollide = true
@@ -252,7 +252,7 @@ wallRight.Size = Vector3.new(1, 10, 30)
 wallRight.Position = basePosition + Vector3.new(15.5, 5, 0)
 wallRight.Parent = workspace
 
-roof = Instance.new("Part")
+local roof = Instance.new("Part")
 roof.Name = "WhitelistBeacon_Roof"
 roof.Anchored = true
 roof.CanCollide = true
@@ -261,10 +261,12 @@ roof.Size = Vector3.new(32, 1, 32)
 roof.Position = basePosition + Vector3.new(0, 10.5, 0)
 roof.Parent = workspace
 
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
 
-zoneSize = Vector3.new(20, 10, 20)
-basePosition = whitelistZone.Position
-WHITELIST_RADIUS = 20
+local zoneSize = Vector3.new(20, 10, 20)
+local basePosition = whitelistZone.Position
+local WHITELIST_RADIUS = 20
 
 function getRandomPositionInZone()
     local halfSize = zoneSize / 2
@@ -336,26 +338,26 @@ local function trimInput(input)
     return input:gsub("^%s+", ""):gsub("%s+$", "")
 end
 
-handleStand2Command
-disableStand2
-activatePowerMode
-deactivatePowerMode
+local handleStand2Command
+local disableStand2
+local activatePowerMode
+local deactivatePowerMode
 
-targetPlayer = nil
-lastOwnerPosition = nil
-shootRunning = true
-shotsPerTick = LowLagMode and 4 or 10
-followShotsPerTick = LowLagMode and 2 or 3
-followShotCooldown = LowLagMode and 0.05 or 0.01
-followGunSpacing = 0
-followGridCellSize = 6
-followGridRadius = LowLagMode and 200 or 250
-followMaxTargets = LowLagMode and 10 or 20
-followShootThroughWalls = true
-lastFollowShotAt = 0
-followFireInProgress = false
-shootInterval = perf.shoot
-lastShootAt = 0
+local targetPlayer = nil
+local lastOwnerPosition = nil
+local shootRunning = true
+local shotsPerTick = LowLagMode and 4 or 10
+local followShotsPerTick = LowLagMode and 2 or 3
+local followShotCooldown = LowLagMode and 0.05 or 0.01
+local followGunSpacing = 0
+local followGridCellSize = 6
+local followGridRadius = LowLagMode and 200 or 250
+local followMaxTargets = LowLagMode and 10 or 20
+local followShootThroughWalls = true
+local lastFollowShotAt = 0
+local followFireInProgress = false
+local shootInterval = perf.shoot
+local lastShootAt = 0
 local function getShootHandle(tool)
     if not tool or not tool:IsA("Tool") then return nil end
     if not tool:FindFirstChild("Ammo") then return nil end
@@ -438,37 +440,6 @@ local function isAliveCharacter(char)
     end
     return true
 end
-
-crewUtils = {}
-
-function crewUtils.getCrewId(player)
-    if not player then
-        return nil
-    end
-    local dataFolder = player:FindFirstChild("DataFolder")
-    local crew = dataFolder and dataFolder:FindFirstChild("Crew")
-    if not crew then
-        return nil
-    end
-    return tostring(crew.Value)
-end
-
-function crewUtils.isOwnerCrewmate(player)
-    if not getgenv().enabled then
-        return false
-    end
-    local ownerPlr = Players:FindFirstChild(Owner)
-    if not ownerPlr then
-        return false
-    end
-    local ownerCrew = crewUtils.getCrewId(ownerPlr)
-    if not ownerCrew or ownerCrew == "" or ownerCrew == "0" then
-        return false
-    end
-    local targetCrew = crewUtils.getCrewId(player)
-    return targetCrew == ownerCrew and targetCrew ~= ""
-end
-
 local function collectGridTargets(centerPos)
     local lp = game.Players.LocalPlayer
     local cells = {}
@@ -483,7 +454,6 @@ local function collectGridTargets(centerPos)
             and char and char:FindFirstChild("Head")
             and not char:FindFirstChild("GRABBING_CONSTRAINT")
             and not char:FindFirstChild("ForceField")
-            and not crewUtils.isOwnerCrewmate(player)
             and isAliveCharacter(char) then
             local head = char.Head
             local offset = head.Position - centerPos
@@ -526,8 +496,8 @@ local function collectGridTargets(centerPos)
     end
     return targets
 end
-reloadCooldown = 0.4
-lastReloadAt = {}
+local reloadCooldown = 0.4
+local lastReloadAt = {}
 
 local function captureDefaultConfig()
     if defaultConfigCaptured then
@@ -617,8 +587,8 @@ local function fireToolAtTarget(tool, targetPart, shots)
     end
 end
 
-noclipActive = false
-noclipParts = {}
+local noclipActive = false
+local noclipParts = {}
 
 local function setNoclip(active)
     if noclipActive == active then
@@ -674,20 +644,22 @@ local function safeTeleportToShop(root, shopBase)
     root.AssemblyLinearVelocity = Vector3.zero
     root.AssemblyAngularVelocity = Vector3.zero
 end
-stomponly = false
+local stomponly = false
 getgenv().downonly = false
-bringonly = false
-takeonly = false
-opkill = false
-summonTarget = nil
-summonMode = "middle"
+local bringonly = false
+local takeonly = false
+local opkill = false
+local summonTarget = nil
+local summonMode = "middle"
 
-player = Players.LocalPlayer
-voiding = true
+local Players = game:GetService("Players")
+local player = Players.LocalPlayer
+local voiding = true
 
-player = Players.LocalPlayer
-Character = player.Character or player.CharacterAdded:Wait()
-hrp = Character:WaitForChild("HumanoidRootPart")
+local Players = game:GetService("Players")
+local player = Players.LocalPlayer
+local Character = player.Character or player.CharacterAdded:Wait()
+local hrp = Character:WaitForChild("HumanoidRootPart")
 
 task.spawn(function()
     while true do
@@ -708,10 +680,10 @@ end)
 
 Workspace.FallenPartsDestroyHeight = 0/0
 
-hasSentKOMessage = false
+local hasSentKOMessage = false
 
-TextChatService = game:GetService("TextChatService")
-textChannel = TextChatService.TextChannels:FindFirstChild("RBXGeneral")
+local TextChatService = game:GetService("TextChatService")
+local textChannel = TextChatService.TextChannels:FindFirstChild("RBXGeneral")
 
 TextChatService.ChatWindowConfiguration.Enabled = true
 
@@ -721,7 +693,7 @@ function sendMessage(message)
     end
 end
 
-activationAnnounced = false
+local activationAnnounced = false
 task.defer(function()
     if activationAnnounced then
         return
@@ -730,7 +702,7 @@ task.defer(function()
     sendMessage("V!N Activated")
 end)
 
-sideOffset = 10
+local sideOffset = 10
 
 function startFollowingTarget(senderName)
     targetPlayer = game.Players:FindFirstChild(senderName)
@@ -760,6 +732,7 @@ function handleLoopKillCommand(targetName, specificBot)
         specificBot = specificBot:lower()
     end
 
+    local localPlayer = Players.LocalPlayer
     if not localPlayer then return end
 
     for botKey, botUsername in pairs(Bots) do
@@ -797,6 +770,7 @@ function handleStompCommand(targetName, specificBot)
         specificBot = specificBot:lower()
     end
 
+    local localPlayer = Players.LocalPlayer
     if not localPlayer then return end
 
     for botKey, botUsername in pairs(Bots) do
@@ -834,6 +808,7 @@ function handleOPKillCommand(targetName, specificBot)
         specificBot = specificBot:lower()
     end
 
+    local localPlayer = Players.LocalPlayer
     if not localPlayer then return end
 
     for botKey, botUsername in pairs(Bots) do
@@ -867,6 +842,7 @@ end
 
 function handleFlingCommand(targetName)
     targetName = targetName:lower()
+    local localPlayer = Players.LocalPlayer
     if not localPlayer then return end
 
     for botKey, botUsername in pairs(Bots) do
@@ -901,6 +877,7 @@ function handleBringCommand(targetName, specificBot, senderName)
         specificBot = specificBot:lower()
     end
 
+    local localPlayer = Players.LocalPlayer
     if not localPlayer then return end
 
     for botKey, botUsername in pairs(Bots) do
@@ -932,7 +909,7 @@ function handleBringCommand(targetName, specificBot, senderName)
     end
 end
 
-savedTarget5 = nil
+local savedTarget5 = nil
 
 function handleTakeCommand(targetName, destinationName)
     targetName = targetName:lower()
@@ -992,166 +969,64 @@ function handleTakeCommand(targetName, destinationName)
     end
 end
 
-gotoPlayer = nil
-gotoCFrame = nil
-gotoTarget = nil
-vehicleMode = false
-vehicleSeatCFrame = CFrame.new(-866.932, 21.179, -587.317) * CFrame.Angles(math.rad(178.53), math.rad(-70.483), math.rad(178.615))
-vehiclePickupPos = Vector3.new(-897.034, 18.355, -611.24)
-vehicleSeatName = "VehicleSeat"
-passengerSeatName = "Seat"
-vehicleName = "KOALA12345A3BIKE"
-vehicleShopName = "[FoodsCart] - $17"
-vehiclePurchaseEnabled = false
-vehicleAcquired = false
-lastVehiclePurchase = 0
-lastVehicleSearch = 0
-vehicleModel = nil
-vehicleState = "IDLE"
-
-destinationData = {
-    rifle = {cframe = CFrame.new(-265, 52, -220)},
-    armor = {cframe = CFrame.new(-933, -25, 570)},
-    lmg = {cframe = CFrame.new(-618, 23, -299)},
-    mil = {cframe = CFrame.new(36, 50, -830)},
-    military = {cframe = CFrame.new(36, 50, -830)},
-    rev = {cframe = CFrame.new(-639, 21, -125)},
-    revolver = {cframe = CFrame.new(-639, 21, -125)},
-    food = {cframe = CFrame.new(-327, 23, -291)},
-    food2 = {cframe = CFrame.new(305, 49, -622)},
-    roof = {cframe = CFrame.new(-326, 80, -293)},
-    bank = {cframe = CFrame.new(-467, 39, -284)},
-    school = {cframe = CFrame.new(-587, 68, 330)},
-    rpg = {cframe = CFrame.new(113, -27, -268)},
-    uphill = {cframe = CFrame.new(503, 48, -591)},
-    downhill = {cframe = CFrame.new(-563, 8, -716)},
-    gs = {cframe = CFrame.new(415.067, 76.778, 1.685)},
-}
-
-pendingOwnerDestination = nil
-ownerRidePending = false
-loopCommandState = {
-    active = false,
-    paused = false,
-    targetUserId = nil,
-}
-
-local function clearLoopCommandState()
-    loopCommandState.active = false
-    loopCommandState.paused = false
-    loopCommandState.targetUserId = nil
-end
-
-local function pauseLoopForGoto(destinationName)
-    if not loopCommandState.active or loopCommandState.paused then
-        return
-    end
-    loopCommandState.paused = true
-    lockedTarget = nil
-    ragebottargets = {}
-    teleporting = false
-    voiding = false
-    sendMessage("Pausing .l to handle .to " .. destinationName)
-end
-
-local function resumeLoopCommand()
-    if not loopCommandState.active or not loopCommandState.paused then
-        return
-    end
-    local target = Players:GetPlayerByUserId(loopCommandState.targetUserId)
-    loopCommandState.paused = false
-    if target and target.Character then
-        ragebottargets = {target}
-        lockedTarget = target
-        lockedTargetUserId = target.UserId
-        autoLocked = false
-        shouldSwitch = false
-        teleporting = true
-        voiding = false
-        sendMessage("Resuming .l for " .. target.Name)
-        return
-    end
-    -- If we couldn't find the target, clear the stored state.
-    clearLoopCommandState()
-end
-
-local function parseCoordinateVector(str)
-    if not str then
-        return nil
-    end
-    local coords = {}
-    for num in str:gmatch("[+-]?%d+%.?%d*") do
-        local value = tonumber(num)
-        if value then
-            table.insert(coords, value)
-            if #coords == 3 then
-                break
-            end
-        end
-    end
-    if #coords == 3 then
-        return Vector3.new(coords[1], coords[2], coords[3])
-    end
-    return nil
-end
-
-local function teleportOwnerToDestination(destinationName)
-    if not destinationName then
-        return
-    end
-    local destination = destinationData[destinationName]
-    if not destination then
-        return
-    end
-    local ownerPlr = Players:FindFirstChild(Owner)
-    if not ownerPlr or not ownerPlr.Character then
-        return
-    end
-    local hrp = ownerPlr.Character:FindFirstChild("HumanoidRootPart")
-    if not hrp then
-        return
-    end
-    local targetCFrame = destination.ownerCFrame or destination.cframe
-    if targetCFrame then
-        hrp.CFrame = targetCFrame
-    end
-end
+local gotoPlayer = nil
+local gotoCFrame = nil
+local gotoTarget = nil
+local vehicleMode = false
+local vehicleSeatCFrame = CFrame.new(-866.932, 21.179, -587.317) * CFrame.Angles(math.rad(178.53), math.rad(-70.483), math.rad(178.615))
+local vehiclePickupPos = Vector3.new(-897.034, 18.355, -611.24)
+local vehicleSeatName = "VehicleSeat"
+local passengerSeatName = "Seat"
+local vehicleName = "KOALA12345A3BIKE"
+local vehicleShopName = "[FoodsCart] - $17"
+local vehiclePurchaseEnabled = true
+local lastVehiclePurchase = 0
+local lastVehicleSearch = 0
+local vehicleModel = nil
 
 function handleGotoCommand(playerName, locationName)
+    local Players = game:GetService("Players")
     local player = Players:FindFirstChild(playerName)
-    if not player then
-        return false
-    end
+    if not player then return end
 
-    local normalizedLocation = (locationName or ""):lower()
-    local destination = destinationData[normalizedLocation]
-    gotoCFrame = destination and destination.cframe or nil
+    locationName = locationName:lower()
+
+    local locationCFrames = {
+        rifle = CFrame.new(-265, 52, -220),
+        armor = CFrame.new(-933, -25, 570),
+        lmg = CFrame.new(-618, 23, -299),
+        mil = CFrame.new(36, 50, -830),
+        military = CFrame.new(36, 50, -830),
+        rev = CFrame.new(-639, 21, -125),
+        revolver = CFrame.new(-639, 21, -125),
+        food = CFrame.new(-327, 23, -291),
+        food2 = CFrame.new(305, 49, -622),
+        roof = CFrame.new(-326, 80, -293),
+        bank = CFrame.new(-467, 39, -284),
+        school = CFrame.new(-587, 68, 330),
+        rpg = CFrame.new(113, -27, -268),
+        uphill = CFrame.new(503, 48, -591),
+        downhill = CFrame.new(-563, 8, -716),
+        gs = CFrame.new(415.067, 76.778, 1.685),
+    }
+
+    gotoCFrame = locationCFrames[locationName]
     gotoTarget = nil
-
-    if not gotoCFrame and locationName then
-        local coords = parseCoordinateVector(locationName)
-        if coords then
-            gotoCFrame = CFrame.new(coords)
-        end
-    end
-
+    
     -- If not a location, try to find a player
     if not gotoCFrame then
-        local targetPlayer = findPlayerByPartial(normalizedLocation)
+        local targetPlayer = findPlayerByPartial(locationName)
         if targetPlayer and targetPlayer.Character and targetPlayer.Character:FindFirstChild("HumanoidRootPart") then
             gotoTarget = targetPlayer
         else
-            return false
+            return
         end
     end
 
     gotoPlayer = player
     vehicleMode = true
-    vehicleState = "IDLE"
     vehicleModel = nil
     lockedTarget = nil
-    vehiclePurchaseEnabled = gotoCFrame ~= nil and true or false
-    teleporting = false
     reloadTool()
     stomponly = false
     bringonly = false
@@ -1161,12 +1036,12 @@ function handleGotoCommand(playerName, locationName)
     takeonly = false
     summonTarget = nil
     flingonly = false
-    return true
 end
 
-skyTarget = nil
+local skyTarget = nil
 
 function handleSkyCommand(username)
+    local Players = game:GetService("Players")
     local target = Players:FindFirstChild(username)
     if not target then return end
 
@@ -1190,6 +1065,7 @@ function handleDownCommand(targetName, specificBot)
         specificBot = specificBot:lower()
     end
 
+    local localPlayer = Players.LocalPlayer
     if not localPlayer then return end
 
     for botKey, botUsername in pairs(Bots) do
@@ -1251,17 +1127,16 @@ function handleFixCommand(specificBot)
             summonTarget = nil
             flingonly = false
             killall = false
-            clearLoopCommandState()
             game.Players.LocalPlayer.Character.Humanoid.Health = 0
         end
     end
 end
 
-player = game.Players.LocalPlayer
-character = player.Character
-AnimationId = "rbxassetid://507766388"
+local player = game.Players.LocalPlayer
+local character = player.Character
+local AnimationId = "rbxassetid://507766388"
 
-animations = {
+local animations = {
     {"run", "RunAnim"},
     {"walk", "WalkAnim"},
     {"jump", "JumpAnim"},
@@ -1284,17 +1159,17 @@ player.CharacterAdded:Connect(function(character)
     end
 end)
 
-EMOTES = {
+local EMOTES = {
     ["billy bounce"] = "rbxassetid://136095999219650",
     ["zero two dance v2"] = "rbxassetid://116714406076290",
     ["jabba switchway"] = "rbxassetid://82682811348660",
     ["beat"] = "rbxassetid://133394554631338"
 }
 
-player = game.Players.LocalPlayer
-character = player.Character
-currentTrack = nil
-emoteLoopTask = nil
+local player = game.Players.LocalPlayer
+local character = player.Character
+local currentTrack = nil
+local emoteLoopTask = nil
 
 function playAnimation(animId)
     if not character then return end
@@ -1390,7 +1265,6 @@ function handleHideCommand(specificBot)
     flingonly = false
     killall = false
     vehicleMode = false
-    vehicleState = "IDLE"
 
     -- IMPORTANT: clear stored destinations / carry logic that can keep moving the stand
     savedTarget5 = nil
@@ -1398,8 +1272,6 @@ function handleHideCommand(specificBot)
     gotoCFrame = nil
     gotoTarget = nil
     vehicleModel = nil
-
-    clearLoopCommandState()
 
     -- stop movement tasks
     teleporting = false
@@ -1442,10 +1314,11 @@ task.spawn(function()
     end
 end)
 
-localPlayer = game.Players.LocalPlayer
-player = game.Players.LocalPlayer
-character = player.Character or player.CharacterAdded:Wait()
-humanoid = character:FindFirstChildOfClass("Humanoid")
+local Players = game:GetService("Players")
+local localPlayer = game.Players.LocalPlayer
+local player = game.Players.LocalPlayer
+local character = player.Character or player.CharacterAdded:Wait()
+local humanoid = character:FindFirstChildOfClass("Humanoid")
 
 localPlayer.CharacterAdded:Connect(function(newCharacter)
     character = newCharacter
@@ -1493,8 +1366,10 @@ function teleportToPosition(targetPosition)
     hrp.AssemblyAngularVelocity = Vector3.zero
 end
 
-character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
-TeleportService = game:GetService("TeleportService")
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+local TeleportService = game:GetService("TeleportService")
 
 LocalPlayer.CharacterAdded:Connect(function(newCharacter)
     character = newCharacter
@@ -1516,10 +1391,10 @@ function equipTool(toolName)
     end
 end
 
-whitelistedUsers = {}
-activeListeners = {}
+local whitelistedUsers = {}
+local activeListeners = {}
 
-TextChatService = game:GetService("TextChatService")
+local TextChatService = game:GetService("TextChatService")
 
 function isAuthorized(player)
     return player.Name == Owner or whitelistedUsers[player.Name]
@@ -1598,17 +1473,13 @@ function setupChatListener(player)
 
         if (isAuthorized(player)) then
             if msgLower == ".a on" then
-                if powerModeActive then
-                    sendMessage("POWER MODE is active. Say 'power!' to turn it off before re-enabling .a.")
-                else
-                    hardStop = false
-                    lockedTarget = nil
-                    voiding = false
-                    getgenv().enabled = true
-                    startFollowingTarget(player.Name)
-                    if stand2Active and standHomeName ~= player.Name then
-                        standHomeName = player.Name
-                    end
+                hardStop = false
+                lockedTarget = nil
+                voiding = false
+                getgenv().enabled = true
+                startFollowingTarget(player.Name)
+                if stand2Active and standHomeName ~= player.Name then
+                    standHomeName = player.Name
                 end
             elseif msgLower == ".a off" then
                 getgenv().enabled = false
@@ -1668,18 +1539,8 @@ function setupChatListener(player)
                 local destination = msgLower:match("^%.to%s+(.+)$") or msgLower:match("^%.tp%s+(.+)$")
                 destination = trimInput(destination)
                 if destination and destination ~= "" then
-                    local normalizedDestination = destination:lower()
-                    pauseLoopForGoto(normalizedDestination)
-                    if destinationData[normalizedDestination] then
-                        pendingOwnerDestination = normalizedDestination
-                    end
-                    if handleGotoCommand(Owner, destination) then
-                        ownerRidePending = true
-                        return
-                    end
-                    sendMessage("Could not find .to destination: " .. destination)
-                    ownerRidePending = false
-                    resumeLoopCommand()
+                    -- Use Food Cart transport system
+                    handleGotoCommand(Owner, destination)
                 end
             elseif msgLower == ".s" then
                 teleportToTarget(player.Name)
@@ -1722,7 +1583,7 @@ function setupChatListener(player)
             elseif msgLower == "power!" or msgLower == ".power!" then
                 -- Only allow POWER MODE toggling when stand follow is OFF
                 if getgenv().enabled then
-                    sendMessage("POWER MODE needs .a disabled first. Use '.a off' before running 'power!'.")
+                    sendMessage("Turn .a off to use POWER MODE.")
                 else
                     if activatePowerMode then
                         activatePowerMode()
@@ -1789,10 +1650,6 @@ function setupChatListener(player)
                     sendMessage("Cannot target user " .. target.Name .. " because they are premium.")
                     return
                 end
-
-                loopCommandState.active = true
-                loopCommandState.paused = false
-                loopCommandState.targetUserId = target.UserId
 
                 -- Reset state and set single target
                 reloadTool()
@@ -2107,10 +1964,11 @@ Players.PlayerAdded:Connect(function(player)
     end
 end)
 
-LocalPlayer = game:GetService("Players").LocalPlayer
-lockedTargetUserId = nil
-autoLocked = false
-sentrytarget = nil
+local Players = game:GetService("Players")
+local LocalPlayer = game:GetService("Players").LocalPlayer
+local lockedTargetUserId = nil
+local autoLocked = false
+local sentrytarget = nil
 
 local function resetStandHome()
     if getgenv().enabled and standHomeName then
@@ -2491,7 +2349,9 @@ task.spawn(function()
     end
 end)
 
-bringconnection = nil
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local bringconnection = nil
 
 task.spawn(function()
     while true do
@@ -2581,7 +2441,7 @@ task.spawn(function()
     end
 end)
 
-takeconnection = nil
+local takeconnection = nil
 
 task.spawn(function()
     while true do
@@ -2715,6 +2575,8 @@ task.spawn(function()
     end
 end)
 
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
 
 task.spawn(function()
     while true do
@@ -2821,10 +2683,6 @@ RunService.Heartbeat:Connect(function()
     if target == LocalPlayer then
         lockedTarget = nil
         voiding = true
-        return
-    end
-
-    if getgenv().enabled and crewUtils.isOwnerCrewmate(target) then
         return
     end
 
@@ -2942,9 +2800,6 @@ RunService.Heartbeat:Connect(function()
         task.spawn(function()
             local ok, err = pcall(function()
                 for _, targetPlayer in ipairs(targets) do
-                if crewUtils.isOwnerCrewmate(targetPlayer) then
-                        continue
-                    end
                     local targetChar = targetPlayer.Character
                     local targetPart = targetChar and targetChar:FindFirstChild("Head")
                     if targetPart and isAliveCharacter(targetChar) then
@@ -2965,10 +2820,10 @@ RunService.Heartbeat:Connect(function()
     end
 end)
 
-Player = game.Players.LocalPlayer
-Character = Player.Character or Player.CharacterAdded:Wait()
-humanoid = Character:FindFirstChildOfClass("Humanoid")
-root = Character:FindFirstChild("HumanoidRootPart")
+local Player = game.Players.LocalPlayer
+local Character = Player.Character or Player.CharacterAdded:Wait()
+local humanoid = Character:FindFirstChildOfClass("Humanoid")
+local root = Character:FindFirstChild("HumanoidRootPart")
 
 Player.CharacterAdded:Connect(function(char)
     Character = char
@@ -3045,13 +2900,13 @@ function getNextItemToBuy()
     return nil
 end
 
-fired = false
+local fired = false
 
 game:GetService("Players").LocalPlayer.CharacterAdded:Connect(function()
     fired = false
 end)
 
-nativeFireClickDetector = fireclickdetector
+local nativeFireClickDetector = fireclickdetector
 
 local function resolveClickDetector(object)
     if typeof(object) ~= "Instance" then return nil end
@@ -3168,7 +3023,7 @@ local function findShopItem(shopFolder, fullName, opts)
     return nil
 end
 
-armorItems = {
+local armorItems = {
     standard = {
         name = "[High-Medium Armor] - $2589",
         position = Vector3.new(-934.025, -28.15, 570.55),
@@ -3531,11 +3386,11 @@ task.spawn(function()
     end
 end)
 
-humanoid = Character:FindFirstChild("Humanoid")
-bodyEffects = Character and Character:FindFirstChild("BodyEffects")
-koValue = bodyEffects and bodyEffects:FindFirstChild("K.O")
+local humanoid = Character:FindFirstChild("Humanoid")
+local bodyEffects = Character and Character:FindFirstChild("BodyEffects")
+local koValue = bodyEffects and bodyEffects:FindFirstChild("K.O")
 
-lastDamagerName = ""
+local lastDamagerName = ""
 getgenv().lastHealths = {}
 
 task.spawn(function()
@@ -3878,7 +3733,7 @@ local function getVehicleSeats(vehicle)
     if not vehicle then
         return nil, nil
     end
-
+    local driverSeat = vehicle:FindFirstChild(vehicleSeatName, true)
     local passengerSeat = nil
     for _, seat in ipairs(vehicle:GetDescendants()) do
         if seat:IsA("Seat") and seat.Name == passengerSeatName then
@@ -3886,53 +3741,9 @@ local function getVehicleSeats(vehicle)
             break
         end
     end
-
-    local driverSeat = vehicle:FindFirstChild(vehicleSeatName, true)
-    local driverSeatCandidates = {
-        "DriverSeat",
-        "DriversSeat",
-        "Driver",
-        "Seat",
-    }
-
-    local function findSeatByNames(names)
-        for _, name in ipairs(names) do
-            local seat = vehicle:FindFirstChild(name, true)
-            if seat and seat:IsA("Seat") then
-                if seat ~= passengerSeat then
-                    return seat
-                end
-            end
-        end
-        return nil
-    end
-
-    if not driverSeat then
-        driverSeat = findSeatByNames(driverSeatCandidates)
-    end
-
-    if not driverSeat then
-        for _, seat in ipairs(vehicle:GetDescendants()) do
-            if seat:IsA("VehicleSeat") and seat ~= passengerSeat then
-                driverSeat = seat
-                break
-            end
-        end
-    end
-
-    if not driverSeat then
-        for _, seat in ipairs(vehicle:GetDescendants()) do
-            if seat:IsA("Seat") and seat ~= passengerSeat then
-                driverSeat = seat
-                break
-            end
-        end
-    end
-
     if passengerSeat == driverSeat then
         passengerSeat = nil
     end
-
     return driverSeat, passengerSeat
 end
 
@@ -3940,20 +3751,9 @@ local function moveAssembly(part, targetCFrame)
     if not (part and targetCFrame) then
         return
     end
-    if part.Anchored then
-        part.Anchored = false
-    end
     part.AssemblyLinearVelocity = Vector3.zero
     part.AssemblyAngularVelocity = Vector3.zero
     part.CFrame = targetCFrame
-end
-
-local function moveVehicleBehindOwner(vehicleRoot, ownerCFrame)
-    if not (vehicleRoot and ownerCFrame) then
-        return false
-    end
-    moveAssembly(vehicleRoot, ownerCFrame * CFrame.new(0, 0, -6))
-    return true
 end
 
 local function moveVehicleRootToSeat(rootPart, seatPart, desiredSeatCFrame)
@@ -3963,24 +3763,6 @@ local function moveVehicleRootToSeat(rootPart, seatPart, desiredSeatCFrame)
     local seatOffset = rootPart.CFrame:ToObjectSpace(seatPart.CFrame)
     local targetRoot = desiredSeatCFrame * seatOffset:Inverse()
     moveAssembly(rootPart, targetRoot)
-end
-
-local function seatStandInDriver(vehicleRoot, driverSeat, humanoid)
-    if not (vehicleRoot and driverSeat and humanoid) then
-        return false
-    end
-    moveAssembly(vehicleRoot, vehicleSeatCFrame)
-    task.wait(0.05)
-    for _ = 1, 3 do
-        pcall(function()
-            driverSeat:Sit(humanoid)
-        end)
-        task.wait(0.05)
-        if humanoid.SeatPart == driverSeat then
-            return true
-        end
-    end
-    return humanoid.SeatPart == driverSeat
 end
 
 local function getVehicleDestinationCFrame()
@@ -3993,14 +3775,6 @@ local function getVehicleDestinationCFrame()
         return nil
     end
     return gotoCFrame
-end
-
-local function getCurrentOwnerCFrame(ownerChar, ownerHRP)
-    if ownerHRP then
-        ownerLastCFrame = ownerHRP.CFrame
-        return ownerHRP.CFrame
-    end
-    return ownerLastCFrame
 end
 
 local function tryPurchaseVehicle()
@@ -4049,127 +3823,86 @@ local function tryPurchaseVehicle()
     return true
 end
 
--- Vehicle Mode Handler
+-- Vehicle Mode Handler - Frame-based flight loop
+local vehicleSeated = false
+local vehicleOwnerSeated = false
+
 task.spawn(function()
-    while task.wait(0.1) do
-            if vehicleMode and gotoPlayer and (gotoCFrame or gotoTarget) then
-            local lp = LocalPlayer
-            local char = lp.Character
-            if not char then continue end
-
-            local hrp = char:FindFirstChild("HumanoidRootPart")
-            local humanoid = char:FindFirstChildOfClass("Humanoid")
-            local ownerChar = gotoPlayer.Character
-            local ownerHRP = ownerChar and ownerChar:FindFirstChild("HumanoidRootPart")
-            local ownerHumanoid = ownerChar and ownerChar:FindFirstChildOfClass("Humanoid")
-            if ownerHRP then
-                ownerLastCFrame = ownerHRP.CFrame
-            end
-            if not (hrp and humanoid) then
-                continue
-            end
-
-            if not ownerRidePending and vehicleState ~= "IDLE" then
-                vehicleState = "IDLE"
-            end
-
-            local destCFrame = getVehicleDestinationCFrame()
-            if not destCFrame then continue end
-
-            local vehicle = findVehicleModel()
-            if not vehicle then
-                local distToPickup = (hrp.Position - vehiclePickupPos).Magnitude
-                if distToPickup > 4 then
-                    moveAssembly(hrp, CFrame.new(vehiclePickupPos + Vector3.new(0, 3, 0)))
-                else
-                    if not vehicleAcquired and tryPurchaseVehicle() then
-                        vehicleAcquired = true
+    while true do
+        RunService.RenderStepped:Wait()
+        if not vehicleMode or not gotoPlayer then
+            vehicleSeated = false
+            vehicleOwnerSeated = false
+        else
+            local char = LocalPlayer and LocalPlayer.Character
+            local ownerChar = gotoPlayer and gotoPlayer.Character
+            if char and ownerChar then
+                local hrp = char:FindFirstChild("HumanoidRootPart")
+                local hum = char:FindFirstChildOfClass("Humanoid")
+                local oHrp = ownerChar:FindFirstChild("HumanoidRootPart")
+                if hrp and hum and oHrp then
+                    local dest = getVehicleDestinationCFrame()
+                    if dest then
+                        local veh = findVehicleModel()
+                        if not veh then
+                            vehicleSeated = false
+                            if (hrp.Position - vehiclePickupPos).Magnitude > 4 then
+                                hrp.CFrame = CFrame.new(vehiclePickupPos + Vector3.new(0, 3, 0))
+                            else
+                                tryPurchaseVehicle()
+                            end
+                        else
+                            local dSeat, pSeat = getVehicleSeats(veh)
+                            local vRoot = getVehicleRootPart(veh) or dSeat or hrp
+                            if dSeat and not vehicleSeated then
+                                if (not dSeat.Occupant or dSeat.Occupant == hum) and hum.SeatPart ~= dSeat then
+                                    vRoot.CFrame = vehicleSeatCFrame
+                                    vRoot.AssemblyLinearVelocity = Vector3.zero
+                                    vRoot.AssemblyAngularVelocity = Vector3.zero
+                                    pcall(function() dSeat:Sit(hum) end)
+                                elseif hum.SeatPart == dSeat then
+                                    vehicleSeated = true
+                                end
+                            end
+                            if vehicleSeated then
+                                local oHum = ownerChar:FindFirstChildOfClass("Humanoid")
+                                vehicleOwnerSeated = pSeat and oHum and pSeat.Occupant == oHum
+                                if not vehicleOwnerSeated then
+                                    local tgt = oHrp.CFrame * CFrame.new(0, 1, 4)
+                                    if pSeat then
+                                        local off = vRoot.CFrame:ToObjectSpace(pSeat.CFrame)
+                                        tgt = (oHrp.CFrame * CFrame.new(0, 0, 2)) * off:Inverse()
+                                    end
+                                    vRoot.CFrame = tgt
+                                    vRoot.AssemblyLinearVelocity = Vector3.zero
+                                    vRoot.AssemblyAngularVelocity = Vector3.zero
+                                else
+                                    if (vRoot.Position - dest.Position).Magnitude > 3 then
+                                        vRoot.CFrame = dest
+                                        vRoot.AssemblyLinearVelocity = Vector3.zero
+                                        vRoot.AssemblyAngularVelocity = Vector3.zero
+                                    else
+                                        vehicleMode = false
+                                        gotoPlayer = nil
+                                        gotoCFrame = nil
+                                        gotoTarget = nil
+                                        vehicleModel = nil
+                                        vehicleSeated = false
+                                        vehicleOwnerSeated = false
+                                        voiding = true
+                                    end
+                                end
+                            end
+                        end
                     end
                 end
-                continue
-            end
-
-            local driverSeat, passengerSeat = getVehicleSeats(vehicle)
-            local vehicleRoot = getVehicleRootPart(vehicle) or driverSeat or hrp
-
-            if driverSeat then
-                if driverSeat.Occupant and driverSeat.Occupant ~= humanoid then
-                    continue
-                end
-                if humanoid.SeatPart ~= driverSeat then
-                    seatStandInDriver(vehicleRoot, driverSeat, humanoid)
-                    continue
-                end
-            else
-                moveAssembly(hrp, vehicleSeatCFrame)
-                continue
-            end
-
-            if ownerRidePending and humanoid.SeatPart == driverSeat and vehicleState == "IDLE" then
-                vehicleState = "SEEK_OWNER"
-            end
-
-            if ownerRidePending then
-                teleporting = false
-                voiding = false
-                summonTarget = nil
-                getgenv().enabled = false
-                getgenv().enabled1 = false
-                lockedTarget = nil
-                lockedTargetUserId = nil
-                ragebottargets = {}
-                shouldSwitch = false
-            end
-
-            if vehicleState == "SEEK_OWNER" and ownerRidePending then
-                local ownerCFrame = getCurrentOwnerCFrame(ownerChar, ownerHRP)
-                if ownerCFrame then
-                    moveVehicleBehindOwner(vehicleRoot, ownerCFrame)
-                end
-
-                local passengerOccupant = passengerSeat and passengerSeat.Occupant
-                local passengerSeatOccupiedByOwner = passengerSeat and ownerHumanoid and passengerOccupant == ownerHumanoid
-                if passengerSeat and not passengerSeatOccupiedByOwner and ownerHumanoid and ownerHRP then
-                    ownerHRP.CFrame = passengerSeat.CFrame * CFrame.new(0, 2, 0)
-                    pcall(function()
-                        passengerSeat:Sit(ownerHumanoid)
-                    end)
-                end
-
-                if passengerSeatOccupiedByOwner then
-                    vehicleState = "GO_TO_TARGET"
-                end
-            end
-
-            if vehicleState == "GO_TO_TARGET" and ownerRidePending then
-                local distToDest = (vehicleRoot.Position - destCFrame.Position).Magnitude
-                if distToDest > 3 then
-                    moveAssembly(vehicleRoot, destCFrame)
-                else
-                    vehicleMode = false
-                    gotoPlayer = nil
-                    gotoCFrame = nil
-                    gotoTarget = nil
-                    vehicleModel = nil
-                    voiding = true
-                    if pendingOwnerDestination then
-                        teleportOwnerToDestination(pendingOwnerDestination)
-                        pendingOwnerDestination = nil
-                    end
-                    resumeLoopCommand()
-                    ownerRidePending = false
-                    vehicleState = "IDLE"
-                    vehiclePurchaseEnabled = false
-                    vehicleAcquired = false
-                end
-                continue
             end
         end
     end
 end)
 
-hitboxsize = LowLagMode and 12 or 30
-lastHitboxUpdate = 0
+local hitboxsize = LowLagMode and 12 or 30
+local lastHitboxUpdate = 0
 
 deactivatePowerMode = function()
     if not powerModeActive then
@@ -4230,38 +3963,40 @@ activatePowerMode = function()
     captureDefaultConfig()
     powerModeActive = true
 
-    -- POWER MODE: BALANCED AGGRESSIVE - tuned for speed without breaking movement
+    -- POWER MODE: BALANCED AGGRESSIVE - Maximum power without lag
     LowLagMode = false
     
-    -- OPTIMIZED LOOP TIMINGS (fast but sane)
-    perf.loop = 0.02
-    perf.combat = 0.02
-    perf.void = 0.06
-    perf.teleport = 0.02
-    perf.target = 0.04
-    perf.summon = 0.04
-    perf.mask = 0.06
-    perf.equip = 0.04
-    perf.killall = 0.06
-    perf.hitbox = 0.06
-    perf.shoot = 0.02
+    -- OPTIMIZED LOOP TIMINGS (fast but stable - prevents lag spikes)
+    perf.loop = 0.015
+    perf.combat = 0.015
+    perf.void = 0.05
+    perf.teleport = 0.015
+    perf.target = 0.03
+    perf.summon = 0.03
+    perf.mask = 0.05
+    perf.equip = 0.03
+    perf.killall = 0.05
+    perf.hitbox = 0.05
+    perf.shoot = 0.01
 
-    -- SMOOTH MOVEMENT
-    auraspeed = 22
+    -- AGGRESSIVE MOVEMENT SPEED
+    auraspeed = 35
     auradistance = 5
 
-    -- BALANCED FIREPOWER (avoids overload when ammo is tight)
-    shotsPerTick = 10
-    followShotsPerTick = 6
-    followShotCooldown = 0.03
+    -- HIGH FIREPOWER (balanced for stability - prevents network congestion)
+    shotsPerTick = 12
+    followShotsPerTick = 8
+    followShotCooldown = 0.02
 
-    -- SPREAD OUT TARGETS (reduce the extra work that created lag)
-    followGridRadius = 250
-    followMaxTargets = 14
+    -- LARGE SCAN RADIUS + MANY TARGETS
+    followGridRadius = 300
+    followMaxTargets = 20
 
-    -- RELOAD + HITBOX
-    reloadCooldown = 0.3
-    hitboxsize = 32
+    -- FAST RELOAD
+    reloadCooldown = 0.25
+
+    -- LARGE HITBOX
+    hitboxsize = 35
 
     -- HIGH FPS CAP (reasonable limit)
     FPSCap = 120
@@ -4278,8 +4013,8 @@ activatePowerMode = function()
     sendMessage(" POWER MODE ACTIVATED - Balanced Performance ⚡")
 end
 
-Players = cloneref(game:GetService("Players"))
-Client = Players.LocalPlayer
+local Players = cloneref(game:GetService("Players"))
+local Client = Players.LocalPlayer
 
 RunService.RenderStepped:Connect(function ()
     if perf.hitbox > 0 then
@@ -4318,34 +4053,23 @@ Player.CharacterAdded:Connect(function(newChar)
     koValue = bodyEffects:WaitForChild("K.O")
 end)
 
-Workspace = game:GetService("Workspace")
-
-local function isVehicleSeat(part)
-    if not part or not part:IsA("Seat") then
-        return false
-    end
-    if part.Name == vehicleSeatName or part.Name == passengerSeatName then
-        return true
-    end
-    local modelAncestor = part:FindFirstAncestorWhichIsA("Model")
-    return modelAncestor and modelAncestor.Name == vehicleName
-end
+local Workspace = game:GetService("Workspace")
 
 for _, v in ipairs(Workspace:GetDescendants()) do
-    if v:IsA("Seat") and not isVehicleSeat(v) then
+    if v:IsA("Seat") then
         v:Destroy()
     end
 end
 
 Workspace.DescendantAdded:Connect(function(descendant)
     task.defer(function()
-        if descendant:IsA("Seat") and not isVehicleSeat(descendant) then
+        if descendant:IsA("Seat") then
             descendant:Destroy()
         end
     end)
 end)
 
-antiConnections = {}
+local antiConnections = {}
 
 function stripAnimations(character)
     if character:GetAttribute("AntiServerLaggerHandled") then return end
@@ -4390,7 +4114,8 @@ EnableAntiServerLagger()
 
 if BlackScreen then
     pcall(function()
-        player = Players.LocalPlayer
+        local Players = game:GetService("Players")
+        local player = Players.LocalPlayer
         local cam = workspace.CurrentCamera
 
         cam.CameraType = Enum.CameraType.Scriptable
