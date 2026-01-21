@@ -10,8 +10,8 @@ local DisabledGuns = {flintlock = true}
 local SkipAmmoFor = {["[Flintlock]"] = true}
 local AmmoPurchaseCount = 10
 local ArmorThreshold = 80
-local ArmorRecheckDelay = LowLagMode and 3 or 1.5
 local LowLagMode = true
+local ArmorRecheckDelay = LowLagMode and 3 or 1.5
 local perf = {
     loop = LowLagMode and 0.05 or 0,
     combat = LowLagMode and 0.03 or 0,
