@@ -1,4 +1,3 @@
-local Script = "Get Moon Stand for free at discord.gg/mfyCBWWExF"
 
 local Owner = "Mahdirml123i"
 local BlackScreen = false
