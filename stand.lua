@@ -1,18 +1,19 @@
-local Script = "Get Moon Stand for free at discord.gg/mfyCBWWExF"
+local _ENV = setmetatable({}, { __index = _G })
+Script = "Get Moon Stand for free at discord.gg/mfyCBWWExF"
 
-local Owner = "Mahdirml123i"
-local BlackScreen = false
-local DisableRendering = false
-local FPSCap = 60
-local Guns = {"aug", "rifle"}
-local EquipGunCount = 2
-local DisabledGuns = {flintlock = true}
-local SkipAmmoFor = {["[Flintlock]"] = true}
-local AmmoPurchaseCount = 10
-local ArmorThreshold = 80
-local ArmorRecheckDelay = LowLagMode and 3 or 1.5
-local LowLagMode = true
-local perf = {
+Owner = "Mahdirml123i"
+BlackScreen = false
+DisableRendering = false
+FPSCap = 60
+Guns = {"aug", "rifle"}
+EquipGunCount = 2
+DisabledGuns = {flintlock = true}
+SkipAmmoFor = {["[Flintlock]"] = true}
+AmmoPurchaseCount = 10
+ArmorThreshold = 80
+ArmorRecheckDelay = LowLagMode and 3 or 1.5
+LowLagMode = true
+perf = {
     loop = LowLagMode and 0.05 or 0,
     combat = LowLagMode and 0.03 or 0,
     void = LowLagMode and 0.2 or 0,
@@ -26,14 +27,14 @@ local perf = {
     shoot = LowLagMode and 0.03 or 0,
 }
 
-local defaultPerf = {}
+defaultPerf = {}
 for k, v in pairs(perf) do
     defaultPerf[k] = v
 end
-local defaultConfig = {}
-local defaultConfigCaptured = false
+defaultConfig = {}
+defaultConfigCaptured = false
 
-local function standWait(base)
+function standWait(base)
     if stand2Active then
         return math.min(base, 0.01)
     end
@@ -42,21 +43,21 @@ end
 
 if not game:IsLoaded() then game.Loaded:Wait() end
 
-local player = game.Players.LocalPlayer
+player = game.Players.LocalPlayer
 
-local Players = game:GetService("Players")
-local LocalPlayer = Players.LocalPlayer
-local UserInputService = game:GetService("UserInputService")
+Players = game:GetService("Players")
+LocalPlayer = Players.LocalPlayer
+UserInputService = game:GetService("UserInputService")
 
-local Bots = {}
+Bots = {}
 
 Bots[LocalPlayer.Name] = LocalPlayer.Name
 
-local Player = Players.LocalPlayer
-local Character = Player.Character or Player.CharacterAdded:Wait()
-local currentGunIndex = 1
+Player = Players.LocalPlayer
+Character = Player.Character or Player.CharacterAdded:Wait()
+currentGunIndex = 1
 
-local gunData = {
+gunData = {
     rifle = {
         toolName = "[Rifle]",
         shopName = "[Rifle] - $1694"
@@ -79,13 +80,13 @@ local gunData = {
     },
 }
 
-local RunService = game:GetService("RunService")
+RunService = game:GetService("RunService")
 
 if DisableRendering then
     RunService:Set3dRenderingEnabled(false)
 end
 
-local Lighting = game:GetService("Lighting")
+Lighting = game:GetService("Lighting")
 
 Lighting.GlobalShadows = false
 
@@ -99,143 +100,39 @@ workspace.StreamingEnabled = true
 
 getgenv().enabled = false
 getgenv().enabled1 = false
--- CONSOLIDATED STATE TABLE: Reduces register count from 229 to ~50
-local state = {
-    -- Aura/Movement
-    auraspeed = 11,
-    auradistance = 4,
-    auraangle = math.random() * math.pi * 2,
-    standHomeName = Owner,
-    
-    -- Stand2 Mode
-    stand2Active = false,
-    stand2TargetName = nil,
-    stand2TargetUserId = nil,
-    stand2CurrentTarget = nil,
-    
-    -- Power Mode
-    powerModeActive = false,
-    powerModeHitboxSize = 5,
-    powerModeSpeed = 0.01,
-    
-    -- Armor
-    buyingArmorInProgress = false,
-    autoArmorEnabled = true,
-    autoFireArmorEnabled = false,
-    lastArmorPurchase = 0,
-    
-    -- Crew
-    playerCrewName = nil,
-    crewMembers = {},
-    
-    -- Combat Targeting
-    lockedTarget = nil,
-    grabCheckEnabled = true,
-    koCheckEnabled = true,
-    
-    -- Buying Flags
-    buyingInProgress = false,
-    buyingGunInProgress = false,
-    buyingMaskInProgress = false,
-    buyingVehicleInProgress = false,
-    
-    -- Movement
-    teleporting = false,
-    autodrop = false,
-    
-    -- Loop Kill
-    ragebottargets = {},
-    currentTargetIndex = 1,
-    shouldSwitch = false,
-    
-    -- Control
-    hardStop = false,
-    fakepositionconnection = nil,
-}
+auraspeed = 11
+auradistance = 4
+auraangle = math.random() * math.pi * 2
+standHomeName = Owner
+stand2Active = false
+stand2TargetName = nil
+stand2TargetUserId = nil
+stand2CurrentTarget = nil
+powerModeActive = false
+buyingArmorInProgress = false
+autoArmorEnabled = true
+autoFireArmorEnabled = false -- Don't auto-buy fire armor.
+lastArmorPurchase = 0
 
--- Create proxy variables that reference state table directly (not copies)
--- This allows all code to work with local variables while actually modifying state
-local auraspeed, auradistance, auraangle, standHomeName
-local stand2Active, stand2TargetName, stand2TargetUserId, stand2CurrentTarget
-local powerModeActive, buyingArmorInProgress, autoArmorEnabled, autoFireArmorEnabled, lastArmorPurchase
-local playerCrewName, crewMembers, powerModeHitboxSize, powerModeSpeed
-local lockedTarget, grabCheckEnabled, koCheckEnabled
-local buyingInProgress, buyingGunInProgress, buyingMaskInProgress, buyingVehicleInProgress
-local teleporting, autodrop, ragebottargets, currentTargetIndex, fakepositionconnection, hardStop, shouldSwitch
+lockedTarget = nil
+grabCheckEnabled = true
+koCheckEnabled = true
+buyingInProgress = false
+buyingGunInProgress = false
+buyingMaskInProgress = false
+buyingVehicleInProgress = false
+teleporting = false
+autodrop = false
+ragebottargets = {}
+currentTargetIndex = 1
+fakepositionconnection = nil
 
--- Helper function to sync state table to local variables
-local function syncStateToLocals()
-    auraspeed = state.auraspeed
-    auradistance = state.auradistance
-    auraangle = state.auraangle
-    standHomeName = state.standHomeName
-    stand2Active = state.stand2Active
-    stand2TargetName = state.stand2TargetName
-    stand2TargetUserId = state.stand2TargetUserId
-    stand2CurrentTarget = state.stand2CurrentTarget
-    powerModeActive = state.powerModeActive
-    buyingArmorInProgress = state.buyingArmorInProgress
-    autoArmorEnabled = state.autoArmorEnabled
-    autoFireArmorEnabled = state.autoFireArmorEnabled
-    lastArmorPurchase = state.lastArmorPurchase
-    playerCrewName = state.playerCrewName
-    crewMembers = state.crewMembers
-    powerModeHitboxSize = state.powerModeHitboxSize
-    powerModeSpeed = state.powerModeSpeed
-    lockedTarget = state.lockedTarget
-    grabCheckEnabled = state.grabCheckEnabled
-    koCheckEnabled = state.koCheckEnabled
-    buyingInProgress = state.buyingInProgress
-    buyingGunInProgress = state.buyingGunInProgress
-    buyingMaskInProgress = state.buyingMaskInProgress
-    buyingVehicleInProgress = state.buyingVehicleInProgress
-    teleporting = state.teleporting
-    autodrop = state.autodrop
-    ragebottargets = state.ragebottargets
-    currentTargetIndex = state.currentTargetIndex
-    fakepositionconnection = state.fakepositionconnection
-    hardStop = state.hardStop
-    shouldSwitch = state.shouldSwitch
-end
+-- Global hard stop latch (set by .v). When true, combat/movement logic should not run.
+hardStop = false
 
--- Helper function to sync local variables back to state table
-local function syncLocalsToState()
-    state.auraspeed = auraspeed
-    state.auradistance = auradistance
-    state.auraangle = auraangle
-    state.standHomeName = standHomeName
-    state.stand2Active = stand2Active
-    state.stand2TargetName = stand2TargetName
-    state.stand2TargetUserId = stand2TargetUserId
-    state.stand2CurrentTarget = stand2CurrentTarget
-    state.powerModeActive = powerModeActive
-    state.buyingArmorInProgress = buyingArmorInProgress
-    state.autoArmorEnabled = autoArmorEnabled
-    state.autoFireArmorEnabled = autoFireArmorEnabled
-    state.lastArmorPurchase = lastArmorPurchase
-    state.playerCrewName = playerCrewName
-    state.crewMembers = crewMembers
-    state.powerModeHitboxSize = powerModeHitboxSize
-    state.powerModeSpeed = powerModeSpeed
-    state.lockedTarget = lockedTarget
-    state.grabCheckEnabled = grabCheckEnabled
-    state.koCheckEnabled = koCheckEnabled
-    state.buyingInProgress = buyingInProgress
-    state.buyingGunInProgress = buyingGunInProgress
-    state.buyingMaskInProgress = buyingMaskInProgress
-    state.buyingVehicleInProgress = buyingVehicleInProgress
-    state.teleporting = teleporting
-    state.autodrop = autodrop
-    state.ragebottargets = ragebottargets
-    state.currentTargetIndex = currentTargetIndex
-    state.fakepositionconnection = fakepositionconnection
-    state.hardStop = hardStop
-    state.shouldSwitch = shouldSwitch
-end
-
--- Initial sync
-syncStateToLocals()
-local function isValidLoopTarget(plr)
+-- Loop targeting support for .l / .lk
+shouldSwitch = false
+function isValidLoopTarget(plr)
     if not plr or not plr:IsDescendantOf(game) then
         return false
     end
@@ -256,21 +153,26 @@ local function isValidLoopTarget(plr)
     end
     return true
 end
-local automaskenabled = false
-local trashtalkactive = false
-local fpactive = false
-local refreshingfakeposition = false
-local didRefreshOnDeath = false
-local autoSaveEnabled = false
-local autoSavePosition = Vector3.new(-490.6, 93.412, -91.7)
+automaskenabled = false
+trashtalkactive = false
+fpactive = false
+refreshingfakeposition = false
+didRefreshOnDeath = false
+autoSaveEnabled = false
+autoSavePosition = Vector3.new(-490.6, 93.412, -91.7)
 
-local ReplicatedStorage = game:GetService('ReplicatedStorage')
-local Workspace = game:GetService("Workspace")
-local camera = workspace.CurrentCamera
-local _, y, r = camera.CFrame:ToOrientation()
+Players = game:GetService("Players")
+RunService = game:GetService("RunService")
+player = game.Players.LocalPlayer
+character = game.Players.LocalPlayer.Character
+LocalPlayer = Players.LocalPlayer
+ReplicatedStorage = game:GetService('ReplicatedStorage')
+Workspace = game:GetService("Workspace")
+camera = workspace.CurrentCamera
+_, y, r = camera.CFrame:ToOrientation()
 
 -- Avoid infinite yield warnings from missing objects in some games.
-local function ensureChild(parent, className, name)
+function ensureChild(parent, className, name)
     local child = parent:FindFirstChild(name)
     if child then
         return child
@@ -283,7 +185,7 @@ end
 
 ensureChild(ReplicatedStorage, "RemoteEvent", "FW_ShowEvent")
 
-local function ensureLeaderstats(plr)
+function ensureLeaderstats(plr)
     if not plr:FindFirstChild("leaderstats") then
         local stats = Instance.new("Folder")
         stats.Name = "leaderstats"
@@ -304,9 +206,9 @@ getgenv().protectedwhitelist = {}
 
 getgenv().protectedwhitelist[Owner] = true
 
-local basePosition = Vector3.new(87240, 29628, -482290)
+basePosition = Vector3.new(87240, 29628, -482290)
 
-local whitelistZone = Instance.new("Part")
+whitelistZone = Instance.new("Part")
 whitelistZone.Name = "WhitelistBeacon"
 whitelistZone.Anchored = true
 whitelistZone.CanCollide = true
@@ -315,7 +217,7 @@ whitelistZone.Size = Vector3.new(30, 10, 30)
 whitelistZone.Position = basePosition
 whitelistZone.Parent = workspace
 
-local wallFront = Instance.new("Part")
+wallFront = Instance.new("Part")
 wallFront.Name = "WhitelistBeacon_WallFront"
 wallFront.Anchored = true
 wallFront.CanCollide = true
@@ -324,7 +226,7 @@ wallFront.Size = Vector3.new(32, 10, 1)
 wallFront.Position = basePosition + Vector3.new(0, 5, 15.5)
 wallFront.Parent = workspace
 
-local wallBack = Instance.new("Part")
+wallBack = Instance.new("Part")
 wallBack.Name = "WhitelistBeacon_WallBack"
 wallBack.Anchored = true
 wallBack.CanCollide = true
@@ -333,7 +235,7 @@ wallBack.Size = Vector3.new(32, 10, 1)
 wallBack.Position = basePosition + Vector3.new(0, 5, -15.5)
 wallBack.Parent = workspace
 
-local wallLeft = Instance.new("Part")
+wallLeft = Instance.new("Part")
 wallLeft.Name = "WhitelistBeacon_WallLeft"
 wallLeft.Anchored = true
 wallLeft.CanCollide = true
@@ -342,7 +244,7 @@ wallLeft.Size = Vector3.new(1, 10, 30)
 wallLeft.Position = basePosition + Vector3.new(-15.5, 5, 0)
 wallLeft.Parent = workspace
 
-local wallRight = Instance.new("Part")
+wallRight = Instance.new("Part")
 wallRight.Name = "WhitelistBeacon_WallRight"
 wallRight.Anchored = true
 wallRight.CanCollide = true
@@ -351,7 +253,7 @@ wallRight.Size = Vector3.new(1, 10, 30)
 wallRight.Position = basePosition + Vector3.new(15.5, 5, 0)
 wallRight.Parent = workspace
 
-local roof = Instance.new("Part")
+roof = Instance.new("Part")
 roof.Name = "WhitelistBeacon_Roof"
 roof.Anchored = true
 roof.CanCollide = true
@@ -360,12 +262,12 @@ roof.Size = Vector3.new(32, 1, 32)
 roof.Position = basePosition + Vector3.new(0, 10.5, 0)
 roof.Parent = workspace
 
-local Players = game:GetService("Players")
-local LocalPlayer = Players.LocalPlayer
+Players = game:GetService("Players")
+LocalPlayer = Players.LocalPlayer
 
-local zoneSize = Vector3.new(20, 10, 20)
-local basePosition = whitelistZone.Position
-local WHITELIST_RADIUS = 20
+zoneSize = Vector3.new(20, 10, 20)
+basePosition = whitelistZone.Position
+WHITELIST_RADIUS = 20
 
 function getRandomPositionInZone()
     local halfSize = zoneSize / 2
@@ -415,7 +317,7 @@ function checkWhitelistNearPosition()
     end
 end
 
-local function findPlayerByPartial(input)
+function findPlayerByPartial(input)
     if not input then
         return nil
     end
@@ -430,43 +332,63 @@ local function findPlayerByPartial(input)
     return nil
 end
 
-local function trimInput(input)
+function getPlayerCrew(player)
+    if not player then return nil end
+    local dataFolder = player:FindFirstChild("DataFolder")
+    if not dataFolder then return nil end
+    local information = dataFolder:FindFirstChild("Information")
+    if not information then return nil end
+    local crew = information:FindFirstChild("Crew")
+    if not crew then return nil end
+    return tostring(crew.Value)
+end
+
+function isInSameCrew(player1, player2)
+    if not player1 or not player2 then return false end
+    local crew1 = getPlayerCrew(player1)
+    local crew2 = getPlayerCrew(player2)
+    if not crew1 or not crew2 then return false end
+    return crew1 == crew2 and crew1 ~= "None" and crew1 ~= ""
+end
+
+function trimInput(input)
     if not input then
         return nil
     end
     return input:gsub("^%s+", ""):gsub("%s+$", "")
 end
 
-local handleStand2Command
-local disableStand2
-local activatePowerMode
-local deactivatePowerMode
+handleStand2Command
+disableStand2
+activatePowerMode
+deactivatePowerMode
 
-local targetPlayer = nil
-local lastOwnerPosition = nil
-local shootRunning = true
-local shotsPerTick = LowLagMode and 4 or 10
-local followShotsPerTick = LowLagMode and 2 or 3
-local followShotCooldown = LowLagMode and 0.05 or 0.01
-local followGridCellSize = 6
-local followGridRadius = LowLagMode and 200 or 250
-local followMaxTargets = LowLagMode and 10 or 20
-local followShootThroughWalls = true
-local lastFollowShotAt = 0
-local followFireInProgress = false
-local shootInterval = perf.shoot
-local lastShootAt = 0
-local function getShootHandle(tool)
+targetPlayer = nil
+lastOwnerPosition = nil
+shootRunning = true
+shotsPerTick = LowLagMode and 4 or 10
+followShotsPerTick = LowLagMode and 2 or 3
+followShotCooldown = LowLagMode and 0.05 or 0.01
+followGunSpacing = 0
+followGridCellSize = 6
+followGridRadius = LowLagMode and 200 or 250
+followMaxTargets = LowLagMode and 10 or 20
+followShootThroughWalls = true
+lastFollowShotAt = 0
+followFireInProgress = false
+shootInterval = perf.shoot
+lastShootAt = 0
+function getShootHandle(tool)
     if not tool or not tool:IsA("Tool") then return nil end
     if not tool:FindFirstChild("Ammo") then return nil end
     local handle = tool:FindFirstChild("Handle")
     if not handle or not handle.Parent then return nil end
     return handle
 end
-local function isGunTool(tool)
+function isGunTool(tool)
     return tool and tool:IsA("Tool") and tool:FindFirstChild("Ammo")
 end
-local function getGunToolByKey(gunKey)
+function getGunToolByKey(gunKey)
     local info = gunData[gunKey]
     if not info then
         return nil
@@ -489,7 +411,7 @@ local function getGunToolByKey(gunKey)
     end
     return nil
 end
-local function collectGunTools()
+function collectGunTools()
     local tools = {}
     local seen = {}
     local lp = game.Players.LocalPlayer
@@ -517,7 +439,7 @@ local function collectGunTools()
 
     return tools
 end
-local function isAliveCharacter(char)
+function isAliveCharacter(char)
     if not char then
         return false
     end
@@ -538,102 +460,7 @@ local function isAliveCharacter(char)
     end
     return true
 end
-local function getPlayerCrew(player)
-    if not player then
-        return nil
-    end
-    -- Try DataFolder.Information.Crew first (correct path for Da Hood)
-    local dataFolder = player:FindFirstChild("DataFolder")
-    if dataFolder then
-        local information = dataFolder:FindFirstChild("Information")
-        if information then
-            local crewValue = information:FindFirstChild("Crew")
-            if crewValue then
-                return crewValue.Value
-            end
-        end
-    end
-    -- Fallback to leaderstats for compatibility
-    local stats = player:FindFirstChild("leaderstats")
-    if stats then
-        local crewValue = stats:FindFirstChild("Crew")
-        if crewValue then
-            return crewValue.Value
-        end
-    end
-    return nil
-end
-
-local function isCrewMember(player1, player2)
-    if not player1 or not player2 then
-        return false
-    end
-    local crew1 = getPlayerCrew(player1)
-    local crew2 = getPlayerCrew(player2)
-    -- Both must have a crew and it must be the same non-empty crew
-    if crew1 and crew2 and crew1 ~= "" and crew2 ~= "" and crew1 == crew2 then
-        return true
-    end
-    return false
-end
-
-local function getOwnerCrew()
-    local lp = game.Players.LocalPlayer
-    if lp then
-        return getPlayerCrew(lp)
-    end
-    return nil
-end
-
-local function isInOwnerCrew(player)
-    if not player then
-        return false
-    end
-    local ownerCrew = getOwnerCrew()
-    local playerCrew = getPlayerCrew(player)
-    
-    -- If owner has no crew, no one is in owner's crew
-    if not ownerCrew or ownerCrew == "" then
-        return false
-    end
-    
-    -- If player has no crew, they're not in owner's crew
-    if not playerCrew or playerCrew == "" then
-        return false
-    end
-    
-    -- Check if crews match
-    return ownerCrew == playerCrew
-end
-
--- CENTRALIZED ENEMY CHECK FUNCTION
--- Returns true if targetPlayer is an enemy (should be attacked)
--- Returns false if targetPlayer is the owner or in the same crew
-local function isEnemy(targetPlayer)
-    if not targetPlayer then
-        return false
-    end
-    
-    local lp = game.Players.LocalPlayer
-    if not lp then
-        return false
-    end
-    
-    -- Never attack the owner
-    if targetPlayer == lp then
-        return false
-    end
-    
-    -- Never attack crew members
-    if isInOwnerCrew(targetPlayer) then
-        return false
-    end
-    
-    -- All other players are enemies
-    return true
-end
-
-local function collectGridTargets(centerPos)
+function collectGridTargets(centerPos)
     local lp = game.Players.LocalPlayer
     local cells = {}
     if not centerPos or followGridCellSize <= 0 or followGridRadius <= 0 then
@@ -644,7 +471,7 @@ local function collectGridTargets(centerPos)
         if player ~= lp and player ~= targetPlayer
             and not getgenv().whitelist[player.Name]
             and not getgenv().protectedwhitelist[player.Name]
-            and not isCrewMember(lp, player)
+            and not isInSameCrew(lp, player)
             and char and char:FindFirstChild("Head")
             and not char:FindFirstChild("GRABBING_CONSTRAINT")
             and not char:FindFirstChild("ForceField")
@@ -690,12 +517,10 @@ local function collectGridTargets(centerPos)
     end
     return targets
 end
-local reloadCooldown = 0.4
-local lastReloadAt = {}
-local lastEquipAt = 0
-local equipCooldown = 0.5
+reloadCooldown = 0.4
+lastReloadAt = {}
 
-local function captureDefaultConfig()
+function captureDefaultConfig()
     if defaultConfigCaptured then
         return
     end
@@ -715,7 +540,7 @@ local function captureDefaultConfig()
     defaultConfigCaptured = true
 end
 
-local function isReloading()
+function isReloading()
     local lp = game.Players.LocalPlayer
     local char = lp and lp.Character
     local bodyEffects = char and char:FindFirstChild("BodyEffects")
@@ -723,7 +548,7 @@ local function isReloading()
     return reloadFlag and reloadFlag.Value
 end
 
-local function tryReloadTool(tool)
+function tryReloadTool(tool)
     local ammo = tool and tool:FindFirstChild("Ammo")
     if not ammo or ammo.Value > 0 then
         return false
@@ -739,7 +564,7 @@ local function tryReloadTool(tool)
     ReplicatedStorage.MainEvent:FireServer("Reload", tool)
     return true
 end
-local function fireToolAtTarget(tool, targetPart, shots)
+function fireToolAtTarget(tool, targetPart, shots)
     local lp = game.Players.LocalPlayer
     local char = lp and lp.Character
     if not (tool and char and targetPart) then
@@ -783,10 +608,10 @@ local function fireToolAtTarget(tool, targetPart, shots)
     end
 end
 
-local noclipActive = false
-local noclipParts = {}
+noclipActive = false
+noclipParts = {}
 
-local function setNoclip(active)
+function setNoclip(active)
     if noclipActive == active then
         return
     end
@@ -819,7 +644,7 @@ RunService.Stepped:Connect(function()
     end
 end)
 
-local function withNoclip(fn)
+function withNoclip(fn)
     setNoclip(true)
     local ok, err = pcall(fn)
     setNoclip(false)
@@ -828,7 +653,7 @@ local function withNoclip(fn)
     end
 end
 
-local function safeTeleportToShop(root, shopBase)
+function safeTeleportToShop(root, shopBase)
     if not root or not shopBase then
         return
     end
@@ -840,22 +665,22 @@ local function safeTeleportToShop(root, shopBase)
     root.AssemblyLinearVelocity = Vector3.zero
     root.AssemblyAngularVelocity = Vector3.zero
 end
-local stomponly = false
+stomponly = false
 getgenv().downonly = false
-local bringonly = false
-local takeonly = false
-local opkill = false
-local summonTarget = nil
-local summonMode = "middle"
+bringonly = false
+takeonly = false
+opkill = false
+summonTarget = nil
+summonMode = "middle"
 
-local Players = game:GetService("Players")
-local player = Players.LocalPlayer
-local voiding = true
+Players = game:GetService("Players")
+player = Players.LocalPlayer
+voiding = true
 
-local Players = game:GetService("Players")
-local player = Players.LocalPlayer
-local Character = player.Character or player.CharacterAdded:Wait()
-local hrp = Character:WaitForChild("HumanoidRootPart")
+Players = game:GetService("Players")
+player = Players.LocalPlayer
+Character = player.Character or player.CharacterAdded:Wait()
+hrp = Character:WaitForChild("HumanoidRootPart")
 
 task.spawn(function()
     while true do
@@ -876,12 +701,10 @@ end)
 
 Workspace.FallenPartsDestroyHeight = 0/0
 
-local hasSentKOMessage = false
-local lastKOCheckTime = 0
-local wasKOedBefore = false
+hasSentKOMessage = false
 
-local TextChatService = game:GetService("TextChatService")
-local textChannel = TextChatService.TextChannels:FindFirstChild("RBXGeneral")
+TextChatService = game:GetService("TextChatService")
+textChannel = TextChatService.TextChannels:FindFirstChild("RBXGeneral")
 
 TextChatService.ChatWindowConfiguration.Enabled = true
 
@@ -891,7 +714,7 @@ function sendMessage(message)
     end
 end
 
-local activationAnnounced = false
+activationAnnounced = false
 task.defer(function()
     if activationAnnounced then
         return
@@ -900,7 +723,7 @@ task.defer(function()
     sendMessage("V!N Activated")
 end)
 
-local sideOffset = 10
+sideOffset = 10
 
 function startFollowingTarget(senderName)
     targetPlayer = game.Players:FindFirstChild(senderName)
@@ -1107,7 +930,7 @@ function handleBringCommand(targetName, specificBot, senderName)
     end
 end
 
-local savedTarget5 = nil
+savedTarget5 = nil
 
 function handleTakeCommand(targetName, destinationName)
     targetName = targetName:lower()
@@ -1167,20 +990,20 @@ function handleTakeCommand(targetName, destinationName)
     end
 end
 
-local gotoPlayer = nil
-local gotoCFrame = nil
-local gotoTarget = nil
-local vehicleMode = false
-local vehicleSeatCFrame = CFrame.new(-866.932, 21.179, -587.317) * CFrame.Angles(math.rad(178.53), math.rad(-70.483), math.rad(178.615))
-local vehiclePickupPos = Vector3.new(-897.034, 18.355, -611.24)
-local vehicleSeatName = "VehicleSeat"
-local passengerSeatName = "Seat"
-local vehicleName = "KOALA12345A3BIKE"
-local vehicleShopName = "[FoodsCart] - $17"
-local vehiclePurchaseEnabled = false
-local lastVehiclePurchase = 0
-local lastVehicleSearch = 0
-local vehicleModel = nil
+gotoPlayer = nil
+gotoCFrame = nil
+gotoTarget = nil
+vehicleMode = false
+vehicleSeatCFrame = CFrame.new(-866.932, 21.179, -587.317) * CFrame.Angles(math.rad(178.53), math.rad(-70.483), math.rad(178.615))
+vehiclePickupPos = Vector3.new(-897.034, 18.355, -611.24)
+vehicleSeatName = "VehicleSeat"
+passengerSeatName = "Seat"
+vehicleName = "KOALA12345A3BIKE"
+vehicleShopName = "[FoodsCart] - $17"
+vehiclePurchaseEnabled = false
+lastVehiclePurchase = 0
+lastVehicleSearch = 0
+vehicleModel = nil
 
 function handleGotoCommand(playerName, locationName)
     local Players = game:GetService("Players")
@@ -1236,7 +1059,7 @@ function handleGotoCommand(playerName, locationName)
     flingonly = false
 end
 
-local skyTarget = nil
+skyTarget = nil
 
 function handleSkyCommand(username)
     local Players = game:GetService("Players")
@@ -1295,107 +1118,6 @@ function handleDownCommand(targetName, specificBot)
     end
 end
 
-local function equipAllGuns()
-    -- Force equip all configured guns with retry logic for respawn
-    local lp = game.Players.LocalPlayer
-    if not lp then return end
-    
-    local backpack = lp:FindFirstChild("Backpack")
-    local char = lp.Character
-    local hum = char and char:FindFirstChildOfClass("Humanoid")
-    
-    -- If not ready, retry with delay
-    if not (backpack and hum and hum.Health > 0) then
-        task.spawn(function()
-            task.wait(0.1)
-            equipAllGuns()
-        end)
-        return
-    end
-    
-    local equippedNames = {}
-    for _, tool in ipairs(char:GetChildren()) do
-        if isGunTool(tool) then
-            equippedNames[tool.Name] = true
-        end
-    end
-    
-    -- Equip all guns from the Guns list
-    for _, gunKey in ipairs(Guns) do
-        if DisabledGuns[gunKey] then
-            continue
-        end
-        local gunInfo = gunData[gunKey]
-        if gunInfo then
-            local gunName = gunInfo.toolName
-            if not equippedNames[gunName] then
-                local gun = backpack:FindFirstChild(gunName)
-                if gun then
-                    pcall(function()
-                        hum:EquipTool(gun)
-                    end)
-                    equippedNames[gunName] = true
-                end
-            end
-        end
-    end
-end
-
-local function performFullReset()
-    -- Full state reset (same as .repair command)
-    getgenv().enabled = false
-    getgenv().enabled1 = false
-    ragebottargets = {}
-    shouldSwitch = false
-    currentTargetIndex = 1
-    lockedTarget = nil
-    lockedTargetUserId = nil
-    autoLocked = false
-    autodrop = false
-    stand2Active = false
-    stand2TargetName = nil
-    stand2TargetUserId = nil
-    stand2CurrentTarget = nil
-    buyingInProgress = false
-    buyingGunInProgress = false
-    buyingMaskInProgress = false
-    buyingArmorInProgress = false
-    voiding = true
-    teleporting = false
-    summonTarget = nil
-    flingonly = false
-    killall = false
-    stomponly = false
-    bringonly = false
-    takeonly = false
-    getgenv().downonly = false
-    opkill = false
-    powerModeActive = false
-    hardStop = false
-    vehicleMode = false
-    savedTarget5 = nil
-    gotoPlayer = nil
-    gotoCFrame = nil
-    gotoTarget = nil
-    vehicleModel = nil
-    skyTarget = nil
-    sentrytarget = nil
-    fpactive = false
-    refreshingfakeposition = false
-    didRefreshOnDeath = false
-    
-    -- Clear all reload timers
-    lastReloadAt = {}
-    
-    -- Reset performance settings
-    for k, v in pairs(defaultPerf) do
-        perf[k] = v
-    end
-    
-    -- Sync all changes back to state table
-    syncLocalsToState()
-end
-
 function handleFixCommand(specificBot)
     if specificBot then
         specificBot = specificBot:lower()
@@ -1410,41 +1132,32 @@ function handleFixCommand(specificBot)
                 return
             end
 
-            -- Perform full state reset
-            performFullReset()
-            
-            -- More reliable reset: some games ignore direct Health=0 in certain states.
-            local char = game.Players.LocalPlayer.Character
-            local hum = char and char:FindFirstChildOfClass("Humanoid")
-            if hum then
-                for _ = 1, 5 do
-                    pcall(function()
-                        hum.Health = 0
-                    end)
-                    if hum.Health <= 0 then
-                        break
-                    end
-                    task.wait(0.1)
-                end
-                -- Fallback: force break joints if still alive
-                if hum.Health > 0 then
-                    pcall(function()
-                        hum:ChangeState(Enum.HumanoidStateType.Dead)
-                    end)
-                    pcall(function()
-                        char:BreakJoints()
-                    end)
-                end
-            end
+            getgenv().enabled = false
+            getgenv().enabled1 = false
+            ragebottargets = {}
+            lockedTarget = nil
+            autodrop = false
+            stand2Active = false
+            stand2TargetName = nil
+            stand2TargetUserId = nil
+            stand2CurrentTarget = nil
+            buyingInProgress = false
+            buyingGunInProgress = false
+            buyingMaskInProgress = false
+            voiding = true
+            summonTarget = nil
+            flingonly = false
+            killall = false
+            game.Players.LocalPlayer.Character.Humanoid.Health = 0
         end
     end
 end
 
-local player = game.Players.LocalPlayer
-local character = player.Character
-local AnimationId = "rbxassetid://507766388"
+player = game.Players.LocalPlayer
+character = player.Character
+AnimationId = "rbxassetid://507766388"
 
-local animations = {
+animations = {
     {"run", "RunAnim"},
     {"walk", "WalkAnim"},
     {"jump", "JumpAnim"},
@@ -1467,17 +1180,17 @@ player.CharacterAdded:Connect(function(character)
     end
 end)
 
-local EMOTES = {
+EMOTES = {
     ["billy bounce"] = "rbxassetid://136095999219650",
     ["zero two dance v2"] = "rbxassetid://116714406076290",
     ["jabba switchway"] = "rbxassetid://82682811348660",
     ["beat"] = "rbxassetid://133394554631338"
 }
 
-local player = game.Players.LocalPlayer
-local character = player.Character
-local currentTrack = nil
-local emoteLoopTask = nil
+player = game.Players.LocalPlayer
+character = player.Character
+currentTrack = nil
+emoteLoopTask = nil
 
 function playAnimation(animId)
     if not character then return end
@@ -1622,6 +1335,16 @@ task.spawn(function()
     end
 end)
 
+Players = game:GetService("Players")
+localPlayer = game.Players.LocalPlayer
+player = game.Players.LocalPlayer
+character = player.Character or player.CharacterAdded:Wait()
+humanoid = character:FindFirstChildOfClass("Humanoid")
+
+localPlayer.CharacterAdded:Connect(function(newCharacter)
+    character = newCharacter
+end)
+
 function teleportToTarget(commandSender)
     local targetPlayer = game.Players:FindFirstChild(commandSender)
     if targetPlayer and targetPlayer.Character and targetPlayer.Character:FindFirstChild("HumanoidRootPart") then
@@ -1664,47 +1387,35 @@ function teleportToPosition(targetPosition)
     hrp.AssemblyAngularVelocity = Vector3.zero
 end
 
-local Players = game:GetService("Players")
-local LocalPlayer = Players.LocalPlayer
-local character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
-local TeleportService = game:GetService("TeleportService")
+Players = game:GetService("Players")
+LocalPlayer = Players.LocalPlayer
+character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+TeleportService = game:GetService("TeleportService")
 
 LocalPlayer.CharacterAdded:Connect(function(newCharacter)
     character = newCharacter
     character:WaitForChild("Humanoid")
-
-    -- refresh cached stand character refs so equip/shoot works after death/rebuy
-    task.defer(function()
-        Character = newCharacter
-        humanoid = newCharacter:FindFirstChildOfClass("Humanoid") or newCharacter:WaitForChild("Humanoid")
-        bodyEffects = newCharacter:FindFirstChild("BodyEffects")
-        koValue = bodyEffects and bodyEffects:FindFirstChild("K.O")
-
-        -- Force re-equip after respawn so loop modes (.l/.lk) immediately have 2 guns.
-        -- Wait for character to fully load before equipping
-        task.wait(0.5)
-        equipAllGuns()
-    end)
 end)
 
 function equipTool(toolName)
     local tool = game.Players.LocalPlayer.Backpack:FindFirstChild(toolName)
     if not tool then
-        tool = game.Players.LocalPlayer.Character:FindFirstChild(toolName)
+        tool = game.Players.LocalPlayer:FindFirstChild(toolName)
     end
     local character = game.Players.LocalPlayer.Character
     if tool and character then
+        tool.Parent = character
         local humanoid = character:FindFirstChildOfClass("Humanoid")
-        if humanoid then
+        if humanoid and tool.Parent ~= character then
             humanoid:EquipTool(tool)
         end
     end
 end
 
-local whitelistedUsers = {}
-local activeListeners = {}
+whitelistedUsers = {}
+activeListeners = {}
 
-local TextChatService = game:GetService("TextChatService")
+TextChatService = game:GetService("TextChatService")
 
 function isAuthorized(player)
     return player.Name == Owner or whitelistedUsers[player.Name]
@@ -1787,6 +1498,8 @@ function setupChatListener(player)
                 lockedTarget = nil
                 voiding = false
                 getgenv().enabled = true
+                targetPlayer = player
+                standHomeName = player.Name
                 startFollowingTarget(player.Name)
                 if stand2Active and standHomeName ~= player.Name then
                     standHomeName = player.Name
@@ -1866,10 +1579,6 @@ function setupChatListener(player)
                             task.wait(1.5)
                         end
                     end
-                    -- Wait for character to fully load, then equip ALL guns
-                    task.wait(0.3)
-                    equipAllGuns()
-                    task.wait(0.2)
                     -- Then grab and bring owner to destination
                     commandSender = Owner
                     lockedTarget = ownerPlr
@@ -1942,72 +1651,13 @@ function setupChatListener(player)
                 end
                 lastEmote = nil
             elseif msgLower == ".fp on" then
-                -- POWER PHASE overlay: do NOT kill-switch current command; enter FP mode and become invisible near owner
-                fpactive = true
-                -- Snapshot current mode so we can restore seamlessly if any temp reset happens
-                local _fpSnapshot = {
-                    enabled = getgenv().enabled,
-                    bringonly = bringonly,
-                    takeonly = takeonly,
-                    stomponly = stomponly,
-                    downonly = getgenv().downonly,
-                    opkill = opkill,
-                    flingonly = flingonly,
-                    killall = killall,
-                    lockedTarget = lockedTarget,
-                    lockedTargetUserId = lockedTargetUserId,
-                    ragebottargets = table.clone and table.clone(ragebottargets) or ragebottargets,
-                }
                 setfflag("NextGenReplicatorEnabledWrite4", "true")
                 task.wait(0.1)
                 replicatesignal(game.Players.LocalPlayer.Kill)
-                task.wait(0.2)
-                -- Re-arm previous mode immediately
-                if _fpSnapshot.enabled then getgenv().enabled = true end
-                bringonly = _fpSnapshot.bringonly
-                takeonly = _fpSnapshot.takeonly
-                stomponly = _fpSnapshot.stomponly
-                getgenv().downonly = _fpSnapshot.downonly
-                opkill = _fpSnapshot.opkill
-                flingonly = _fpSnapshot.flingonly
-                killall = _fpSnapshot.killall
-                lockedTarget = _fpSnapshot.lockedTarget
-                lockedTargetUserId = _fpSnapshot.lockedTargetUserId
-                if type(_fpSnapshot.ragebottargets) == "table" then ragebottargets = _fpSnapshot.ragebottargets end
-                teleporting = true
-                voiding = false
-                equipAllGuns()
-                -- Invisibility: hide character around owner
-                task.spawn(function()
-                    while fpactive do
-                        local lp = Players.LocalPlayer
-                        local ch = lp and lp.Character
-                        local hum = ch and ch:FindFirstChildOfClass("Humanoid")
-                        if ch and hum and hum.Health > 0 then
-                            for _, p in ipairs(ch:GetDescendants()) do
-                                if p:IsA("BasePart") then p.Transparency = 1 p.CanCollide = false end
-                                if p:IsA("Decal") then p.Transparency = 1 end
-                            end
-                        end
-                        task.wait(0.2)
-                    end
-                end)
             elseif msgLower == ".fp off" then
-                fpactive = false
                 setfflag("NextGenReplicatorEnabledWrite4", "false")
                 task.wait(0.1)
                 replicatesignal(game.Players.LocalPlayer.Kill)
-                -- Restore visibility
-                task.delay(0.2, function()
-                    local ch = Players.LocalPlayer.Character
-                    if ch then
-                        for _, p in ipairs(ch:GetDescendants()) do
-                            if p:IsA("BasePart") then p.Transparency = 0 end
-                            if p:IsA("Decal") then p.Transparency = 0 end
-                        end
-                    end
-                    equipAllGuns()
-                end)
             elseif msgLower == "power!" or msgLower == ".power!" then
                 -- Only allow POWER MODE toggling when stand follow is OFF
                 if getgenv().enabled then
@@ -2079,14 +1729,9 @@ function setupChatListener(player)
                     return
                 end
 
-                -- Equip all guns before combat
-                equipAllGuns()
-
                 -- Reset state and set single target
                 reloadTool()
                 lockedTarget = target
-                lockedTargetUserId = target.UserId
-                autoLocked = false
 
                 -- .l should LOOP KILL (stomp after knock)
                 stomponly = true
@@ -2097,9 +1742,7 @@ function setupChatListener(player)
                 voiding = false
                 summonTarget = nil
 
-                -- replace previous loop target
                 ragebottargets = {target}
-                currentTargetIndex = 1
                 shouldSwitch = false
 
                 teleporting = true
@@ -2115,8 +1758,6 @@ function setupChatListener(player)
                     sendMessage("Cannot target user " .. target.Name .. " because they are premium.")
                     return
                 end
-                -- Equip all guns before combat
-                equipAllGuns()
                 reloadTool()
                 lockedTarget = target
                 teleporting = true
@@ -2141,8 +1782,6 @@ function setupChatListener(player)
                     sendMessage("Cannot target user " .. target.Name .. " because they are premium.")
                     return
                 end
-                -- Equip all guns before combat
-                equipAllGuns()
                 commandSender = player.Name
                 reloadTool()
                 lockedTarget = target
@@ -2218,13 +1857,8 @@ function setupChatListener(player)
                     return
                 end
 
-                -- Equip all guns before combat
-                equipAllGuns()
-
                 reloadTool()
                 lockedTarget = target
-                lockedTargetUserId = target.UserId
-                autoLocked = false
                 teleporting = true
                 voiding = false
                 summonTarget = nil
@@ -2238,9 +1872,7 @@ function setupChatListener(player)
                 flingonly = false
                 killall = false
 
-                -- replace previous loop target
                 ragebottargets = {target}
-                currentTargetIndex = 1
                 shouldSwitch = false
 
             elseif msgLower:match("^%.lk%s+([^%s]+)%s+([^%s]+)$") then
@@ -2256,8 +1888,6 @@ function setupChatListener(player)
 
                 reloadTool()
                 lockedTarget = target
-                lockedTargetUserId = target.UserId
-                autoLocked = false
                 teleporting = true
                 voiding = false
                 summonTarget = nil
@@ -2271,9 +1901,7 @@ function setupChatListener(player)
                 flingonly = false
                 killall = false
 
-                -- replace previous loop target
                 ragebottargets = {target}
-                currentTargetIndex = 1
                 shouldSwitch = false
             elseif msgLower:match("^%.right%s+([^%s]+)$") then
                 local targetName = msgLower:match("^%.right%s+([^%s]+)$")
@@ -2414,13 +2042,13 @@ Players.PlayerAdded:Connect(function(player)
     end
 end)
 
-local Players = game:GetService("Players")
-local LocalPlayer = game:GetService("Players").LocalPlayer
-local lockedTargetUserId = nil
-local autoLocked = false
-local sentrytarget = nil
+Players = game:GetService("Players")
+LocalPlayer = game:GetService("Players").LocalPlayer
+lockedTargetUserId = nil
+autoLocked = false
+sentrytarget = nil
 
-local function resetStandHome()
+function resetStandHome()
     if getgenv().enabled and standHomeName then
         startFollowingTarget(standHomeName)
     end
@@ -2490,77 +2118,6 @@ disableStand2 = function()
     sendMessage("stand2 off")
 end
 
-deactivatePowerMode = function()
-    if not powerModeActive then
-        return
-    end
-    powerModeActive = false
-    voiding = true
-    teleporting = false
-    lockedTarget = nil
-    sendMessage("Power mode deactivated")
-end
-
-activatePowerMode = function()
-    if powerModeActive then
-        deactivatePowerMode()
-        return
-    end
-    captureDefaultConfig()
-    powerModeActive = true
-    voiding = false
-    teleporting = true
-    sendMessage("Power mode activated - faster and bigger hitbox!")
-    
-    task.spawn(function()
-        while powerModeActive do
-            local lp = game.Players.LocalPlayer
-            if lp and lp.Character then
-                local char = lp.Character
-                local hrp = char:FindFirstChild("HumanoidRootPart")
-                
-                if hrp then
-                    -- Increase hitbox size for power mode
-                    for _, part in ipairs(char:GetDescendants()) do
-                        if part:IsA("BasePart") then
-                            part.Size = part.Size * powerModeHitboxSize
-                        end
-                    end
-                end
-            end
-            task.wait(powerModeSpeed)
-        end
-    end)
-    
-    task.spawn(function()
-        while powerModeActive do
-            local lp = game.Players.LocalPlayer
-            if lp and lp.Character then
-                local char = lp.Character
-                local hrp = char:FindFirstChild("HumanoidRootPart")
-                
-                if hrp then
-                    -- Aggressive shooting at nearby targets
-                    local tools = collectGunTools()
-                    local targets = collectGridTargets(hrp.Position)
-                    
-                    for _, tool in ipairs(tools) do
-                        for _, target in ipairs(targets) do
-                            if target and target.Character and isEnemy(target) then
-                                local targetHead = target.Character:FindFirstChild("Head")
-                                if targetHead then
-                                    fireToolAtTarget(tool, targetHead, 3)
-                                end
-                            end
-                        end
-                    end
-                end
-            end
-            task.wait(powerModeSpeed)
-        end
-    end)
-end
-
 task.spawn(function()
     while true do
         if hardStop then
@@ -2575,48 +2132,46 @@ task.spawn(function()
         end
 
         if shouldSwitch and #ragebottargets > 0 then
-        local attempts = 0
-        local found = nil
-        
-        -- try cycling through current cached targets first
-        while attempts < #ragebottargets do
-        currentTargetIndex = (currentTargetIndex % #ragebottargets) + 1
-        local candidate = ragebottargets[currentTargetIndex]
-        if isValidLoopTarget(candidate) then
-        found = candidate
-        break
-        end
-        attempts += 1
-        end
-        
-        -- For loop modes: if the target left/logged, keep the loop armed.
-        -- Do NOT send stand to void; just idle and keep checking until they rejoin.
-        if not found and #ragebottargets == 1 then
-        local uid = lockedTargetUserId or (ragebottargets[1] and ragebottargets[1].UserId)
-        if uid then
-        for _, p in ipairs(Players:GetPlayers()) do
-        if p.UserId == uid and isValidLoopTarget(p) then
-        ragebottargets[1] = p
-        found = p
-        break
-        end
-        end
-        end
-        end
-        
-        if found then
-        lockedTarget = found
-        lockedTargetUserId = found.UserId
-        autoLocked = false
-        teleporting = true
-        voiding = false
-        else
-        lockedTarget = nil
-        teleporting = false
-        -- keep loop alive without voiding
-        voiding = false
-        end
-        shouldSwitch = false
+            local attempts = 0
+            local found = nil
+            while attempts < #ragebottargets do
+                currentTargetIndex = (currentTargetIndex % #ragebottargets) + 1
+                local candidate = ragebottargets[currentTargetIndex]
+                if isValidLoopTarget(candidate) then
+                    found = candidate
+                    break
+                end
+                attempts += 1
+            end
+
+            -- For .lk (single target), keep trying to re-find the same user by UserId/name if they respawn.
+            if not found and #ragebottargets == 1 then
+                local only = ragebottargets[1]
+                local uid = only and only.UserId
+                if uid then
+                    for _, p in ipairs(Players:GetPlayers()) do
+                        if p.UserId == uid and isValidLoopTarget(p) then
+                            ragebottargets[1] = p
+                            found = p
+                            break
+                        end
+                    end
+                end
+            end
+
+            if found then
+                lockedTarget = found
+                lockedTargetUserId = found.UserId
+                autoLocked = false
+                teleporting = true
+                voiding = false
+            else
+                -- Nobody valid right now; keep trying in future ticks
+                lockedTarget = nil
+                teleporting = false
+                voiding = true
+            end
+            shouldSwitch = false
         end
 
         -- Existing auto-relock by UserId
@@ -2749,172 +2304,9 @@ char = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
 humanoid = char:WaitForChild("Humanoid")
 rootPart = char:WaitForChild("HumanoidRootPart")
 
--- AUTO-RESET ON KNOCK: Monitor for K.O state and trigger reset before death
--- PRESERVE TASK STATE: Save task flags before reset, restore after respawn
-task.spawn(function()
-    local savedTaskState = {}
-    
-    while true do
-        local lp = game.Players.LocalPlayer
-        if lp and lp.Character then
-            local char = lp.Character
-            local bodyEffects = char:FindFirstChild("BodyEffects")
-            if bodyEffects then
-                local koValue = bodyEffects:FindFirstChild("K.O")
-                local isKOed = koValue and koValue.Value
-                
-                -- Detect transition from not-KO'd to KO'd
-                if isKOed and not wasKOedBefore then
-                    wasKOedBefore = true
-                    
-                    -- SAVE TASK STATE before reset (including .a on follow mode)
-                    savedTaskState = {
-                        enabled = getgenv().enabled,
-                        targetPlayer = targetPlayer,
-                        standHomeName = standHomeName,
-                        bringonly = bringonly,
-                        takeonly = takeonly,
-                        stomponly = stomponly,
-                        downonly = getgenv().downonly,
-                        opkill = opkill,
-                        flingonly = flingonly,
-                        killall = killall,
-                        lockedTarget = lockedTarget,
-                        lockedTargetUserId = lockedTargetUserId,
-                        ragebottargets = ragebottargets,
-                        commandSender = commandSender,
-                        savedTarget5 = savedTarget5,
-                        gotoCFrame = gotoCFrame,
-                        gotoTarget = gotoTarget,
-                        gotoPlayer = gotoPlayer,
-                        vehicleMode = vehicleMode,
-                        summonTarget = summonTarget,
-                        skyTarget = skyTarget,
-                    }
-                    
-                    -- Trigger full reset before death (same as .repair)
-                    performFullReset()
-                    
-                    -- Kill the stand immediately (same as .repair command)
-                    local hum = char:FindFirstChildOfClass("Humanoid")
-                    if hum then
-                        for _ = 1, 5 do
-                            pcall(function()
-                                hum.Health = 0
-                            end)
-                            if hum.Health <= 0 then
-                                break
-                            end
-                            task.wait(0.05)
-                        end
-                        -- Fallback: force break joints if still alive
-                        if hum.Health > 0 then
-                            pcall(function()
-                                hum:ChangeState(Enum.HumanoidStateType.Dead)
-                            end)
-                            pcall(function()
-                                char:BreakJoints()
-                            end)
-                        end
-                    end
-                elseif not isKOed and wasKOedBefore then
-                    -- Reset the flag when character recovers or respawns
-                    wasKOedBefore = false
-                    
-                    -- RESTORE TASK STATE after respawn (including .a on follow mode)
-                    local taskWasActive = false
-                    if savedTaskState.enabled then
-                        -- Restore .a on follow mode
-                        getgenv().enabled = true
-                        targetPlayer = savedTaskState.targetPlayer
-                        standHomeName = savedTaskState.standHomeName
-                        if targetPlayer then
-                            startFollowingTarget(savedTaskState.standHomeName)
-                        end
-                        teleporting = true
-                        voiding = false
-                        taskWasActive = true
-                    elseif savedTaskState.bringonly then
-                        bringonly = true
-                        lockedTarget = savedTaskState.lockedTarget
-                        commandSender = savedTaskState.commandSender
-                        teleporting = true
-                        voiding = false
-                        taskWasActive = true
-                    elseif savedTaskState.takeonly then
-                        takeonly = true
-                        lockedTarget = savedTaskState.lockedTarget
-                        savedTarget5 = savedTaskState.savedTarget5
-                        skyTarget = savedTaskState.skyTarget
-                        teleporting = true
-                        voiding = false
-                        taskWasActive = true
-                    elseif savedTaskState.stomponly then
-                        stomponly = true
-                        lockedTarget = savedTaskState.lockedTarget
-                        teleporting = true
-                        voiding = false
-                        taskWasActive = true
-                    elseif savedTaskState.downonly then
-                        getgenv().downonly = true
-                        lockedTarget = savedTaskState.lockedTarget
-                        teleporting = true
-                        voiding = false
-                        taskWasActive = true
-                    elseif savedTaskState.killall then
-                        killall = true
-                        teleporting = true
-                        voiding = false
-                        taskWasActive = true
-                    elseif savedTaskState.flingonly then
-                        flingonly = true
-                        lockedTarget = savedTaskState.lockedTarget
-                        teleporting = true
-                        voiding = false
-                        taskWasActive = true
-                    elseif savedTaskState.opkill then
-                        opkill = true
-                        lockedTarget = savedTaskState.lockedTarget
-                        teleporting = true
-                        voiding = false
-                        taskWasActive = true
-                    elseif #(savedTaskState.ragebottargets or {}) > 0 then
-                        -- Restore loop kill/knock mode
-                        ragebottargets = savedTaskState.ragebottargets
-                        lockedTarget = savedTaskState.lockedTarget
-                        lockedTargetUserId = savedTaskState.lockedTargetUserId
-                        if savedTaskState.stomponly then
-                            stomponly = true
-                        else
-                            getgenv().downonly = true
-                        end
-                        teleporting = true
-                        voiding = false
-                        taskWasActive = true
-                    end
-                    
-                    -- Re-equip all guns after task state restoration for combat modes
-                    if taskWasActive and (lockedTarget or #ragebottargets > 0) then
-                        task.spawn(function()
-                            task.wait(0.2)
-                            equipAllGuns()
-                        end)
-                    end
-                    
-                    -- Clear saved state
-                    savedTaskState = {}
-                end
-            end
-        end
-        task.wait(0.1)
-    end
-end)
-
 task.spawn(function()
     while true do
         -- Main combat loop: should run for ALL offensive modes (.d/.lk use downonly, etc.)
-        -- IMPORTANT: This loop handles positioning and stomp logic, NOT shooting
-        -- Shooting is handled separately in the Heartbeat connection below
         if lockedTarget and not bringonly and not takeonly and not opkill and not flingonly and not (buyingInProgress or buyingGunInProgress or buyingMaskInProgress) then
             local character = lockedTarget.Character
             local myCharacter = LocalPlayer.Character
@@ -3035,9 +2427,9 @@ task.spawn(function()
     end
 end)
 
-local Players = game:GetService("Players")
-local LocalPlayer = Players.LocalPlayer
-local bringconnection = nil
+Players = game:GetService("Players")
+LocalPlayer = Players.LocalPlayer
+bringconnection = nil
 
 task.spawn(function()
     while true do
@@ -3127,7 +2519,7 @@ task.spawn(function()
     end
 end)
 
-local takeconnection = nil
+takeconnection = nil
 
 task.spawn(function()
     while true do
@@ -3261,8 +2653,8 @@ task.spawn(function()
     end
 end)
 
-local Players = game:GetService("Players")
-local LocalPlayer = Players.LocalPlayer
+Players = game:GetService("Players")
+LocalPlayer = Players.LocalPlayer
 
 task.spawn(function()
     while true do
@@ -3376,6 +2768,8 @@ RunService.Heartbeat:Connect(function()
     local isGrabbed = targetCharacter:FindFirstChild("GRABBING_CONSTRAINT")
     local hrp = targetCharacter:FindFirstChild("HumanoidRootPart")
 
+    -- IMPORTANT: do NOT shoot KO targets for loop modes (.lk/.l) to save ammo.
+    -- But still allow shooting KO targets for one-shot stomp mode (.s) if needed.
     if not hrp or not targetPart or not targetPart.Parent then return end
     if isGrabbed then return end
     if (flingonly and target) then return end
@@ -3384,9 +2778,9 @@ RunService.Heartbeat:Connect(function()
     local koValue = bodyEffects and bodyEffects:FindFirstChild("K.O")
     local isKO = koValue and koValue.Value
 
-    -- AMMO CONSERVATION: Stop shooting when target is knocked
-    -- Exception: Allow shooting for direct attack commands (.d, .b, .s, .lk) when alive
-    if isKO then
+    -- Save ammo: don't shoot while target is knocked in loopkill/loopknock.
+    -- (We still teleport above them; stomping is handled elsewhere when stomponly=true)
+    if isKO and (#ragebottargets > 0) then
         return
     end
 
@@ -3401,50 +2795,12 @@ RunService.Heartbeat:Connect(function()
         lastShootAt = now
     end
 
-    -- Ensure both guns are available: proactively equip both configured guns before firing
-    equipAllGuns()
-
-    -- For attack commands, always try to use configured guns (even if they're in Backpack)
-    local toolsToUse = {}
-    local seenTools = {}
-
-    for _, gunKey in ipairs(Guns) do
-        if not DisabledGuns[gunKey] then
-            local tool = getGunToolByKey(gunKey)
-            if tool and not seenTools[tool] then
-                seenTools[tool] = true
-                table.insert(toolsToUse, tool)
-            end
-        end
-    end
-
-    -- Fallback: any gun tools we can find
-    if #toolsToUse == 0 then
-        toolsToUse = collectGunTools()
-    end
-
-    -- Deterministically limit to EquipGunCount distinct guns if more are found
-    if #toolsToUse > EquipGunCount then
-        local trimmed = {}
-        for i = 1, EquipGunCount do
-            table.insert(trimmed, toolsToUse[i])
-        end
-        toolsToUse = trimmed
-    end
-
-    for _, tool in ipairs(toolsToUse) do
+    for _, tool in ipairs(playerChar:GetChildren()) do
         local handle = getShootHandle(tool)
         if handle then
             if tryReloadTool(tool) then
                 continue
             end
-            -- ensure equipped so the server accepts ShootGun consistently
-            pcall(function()
-                if tool.Parent ~= playerChar then
-                    tool.Parent = playerChar
-                    RunService.Heartbeat:Wait()
-                end
-            end)
             for _ = 1, shotsPerTick do
                 ReplicatedStorage.MainEvent:FireServer(
                     "ShootGun",
@@ -3503,17 +2859,13 @@ RunService.Heartbeat:Connect(function()
 
         local toolsToFire = {}
         local seen = {}
-        -- Collect guns from configured Guns table (ensures we get all configured guns)
         for _, gunKey in ipairs(Guns) do
-            if not DisabledGuns[gunKey] then
-                local tool = getGunToolByKey(gunKey)
-                if tool and not seen[tool] then
-                    seen[tool] = true
-                    table.insert(toolsToFire, tool)
-                end
+            local tool = getGunToolByKey(gunKey)
+            if tool and not seen[tool] then
+                seen[tool] = true
+                table.insert(toolsToFire, tool)
             end
         end
-        -- If we didn't get all configured guns, try to collect any available guns
         if #toolsToFire == 0 then
             toolsToFire = collectGunTools()
         end
@@ -3525,22 +2877,14 @@ RunService.Heartbeat:Connect(function()
         lastFollowShotAt = now
         task.spawn(function()
             local ok, err = pcall(function()
-                -- Fire all guns at each target
                 for _, targetPlayer in ipairs(targets) do
                     local targetChar = targetPlayer.Character
                     local targetPart = targetChar and targetChar:FindFirstChild("Head")
                     if targetPart and isAliveCharacter(targetChar) then
-                        -- Fire each gun at this target (dual-wield: same tick)
                         for _, tool in ipairs(toolsToFire) do
-                            if tool then
-                                -- Force equip so the server accepts ShootGun for both tools.
-                                -- This mirrors the behavior that makes `.a on` reliable.
-                                if tool.Parent ~= Player.Character then
-                                    pcall(function()
-                                        tool.Parent = Player.Character
-                                    end)
-                                end
-                                fireToolAtTarget(tool, targetPart, followShotsPerTick)
+                            fireToolAtTarget(tool, targetPart, followShotsPerTick)
+                            if followGunSpacing > 0 then
+                                task.wait(followGunSpacing)
                             end
                         end
                     end
@@ -3554,10 +2898,10 @@ RunService.Heartbeat:Connect(function()
     end
 end)
 
-local Player = game.Players.LocalPlayer
-local Character = Player.Character or Player.CharacterAdded:Wait()
-local humanoid = Character:FindFirstChildOfClass("Humanoid")
-local root = Character:FindFirstChild("HumanoidRootPart")
+Player = game.Players.LocalPlayer
+Character = Player.Character or Player.CharacterAdded:Wait()
+humanoid = Character:FindFirstChildOfClass("Humanoid")
+root = Character:FindFirstChild("HumanoidRootPart")
 
 Player.CharacterAdded:Connect(function(char)
     Character = char
@@ -3634,15 +2978,15 @@ function getNextItemToBuy()
     return nil
 end
 
-local fired = false
+fired = false
 
 game:GetService("Players").LocalPlayer.CharacterAdded:Connect(function()
     fired = false
 end)
 
-local nativeFireClickDetector = fireclickdetector
+nativeFireClickDetector = fireclickdetector
 
-local function resolveClickDetector(object)
+function resolveClickDetector(object)
     if typeof(object) ~= "Instance" then return nil end
     if object:IsA("ClickDetector") then
         return object
@@ -3650,7 +2994,7 @@ local function resolveClickDetector(object)
     return object:FindFirstChildWhichIsA("ClickDetector", true)
 end
 
-local function manualFireClickDetector(clickDetector)
+function manualFireClickDetector(clickDetector)
     if not fired then
         fired = true
         game:GetService("VirtualInputManager"):SendKeyEvent(true, Enum.KeyCode.E, false, game)
@@ -3694,7 +3038,7 @@ local function manualFireClickDetector(clickDetector)
     end)
 end
 
-local function tryNativeClick(clickDetector)
+function tryNativeClick(clickDetector)
     if not nativeFireClickDetector then
         return false
     end
@@ -3713,7 +3057,7 @@ getgenv().fireclickdetector = function(object)
     manualFireClickDetector(clickDetector)
 end
 
-local function getShopBasePart(item, clickDetector)
+function getShopBasePart(item, clickDetector)
     if clickDetector and clickDetector.Parent and clickDetector.Parent:IsA("BasePart") then
         return clickDetector.Parent
     end
@@ -3727,7 +3071,7 @@ local function getShopBasePart(item, clickDetector)
     return item:FindFirstChildWhichIsA("BasePart", true)
 end
 
-local function findShopItem(shopFolder, fullName, opts)
+function findShopItem(shopFolder, fullName, opts)
     if not shopFolder or not fullName then
         return nil
     end
@@ -3757,7 +3101,7 @@ local function findShopItem(shopFolder, fullName, opts)
     return nil
 end
 
-local armorItems = {
+armorItems = {
     standard = {
         name = "[High-Medium Armor] - $2589",
         position = Vector3.new(-934.025, -28.15, 570.55),
@@ -3768,7 +3112,7 @@ local armorItems = {
     }
 }
 
-local function getArmorValue()
+function getArmorValue()
     local char = Player.Character
     local bodyEffects = char and char:FindFirstChild("BodyEffects")
     local armor = bodyEffects and bodyEffects:FindFirstChild("Armor")
@@ -3778,7 +3122,7 @@ local function getArmorValue()
     return 0
 end
 
-local function hasFireArmor()
+function hasFireArmor()
     local char = Player.Character
     local bodyEffects = char and char:FindFirstChild("BodyEffects")
     if not bodyEffects then
@@ -3803,7 +3147,7 @@ local function hasFireArmor()
     return false
 end
 
-local function purchaseArmor(itemInfo)
+function purchaseArmor(itemInfo)
     if not itemInfo then
         return false
     end
@@ -3858,7 +3202,7 @@ local function purchaseArmor(itemInfo)
     return success
 end
 
-local function buyAmmoForGun(gunName, times)
+function buyAmmoForGun(gunName, times)
     if not gunName or SkipAmmoFor[gunName] or not AmmoMap then
         return
     end
@@ -3928,13 +3272,6 @@ task.spawn(function()
                     if not hasGun(toolName) then
                         buyingGunInProgress = true
                         
-                        -- POWER MODE FIX: Temporarily disable power mode during gun purchase
-                        local wasPowerModeActive = powerModeActive
-                        if powerModeActive then
-                            powerModeActive = false
-                            task.wait(0.1)
-                        end
-                        
                         local shopName = gunInfo.shopName
                         local shopFolder = workspace:FindFirstChild("Ignored") and workspace.Ignored:FindFirstChild("Shop")
                         local shopPart = findShopItem(shopFolder, shopName, {ammo = false})
@@ -3956,7 +3293,7 @@ task.spawn(function()
                                         
                                         safeTeleportToShop(root, shopBase)
                                         getgenv().fireclickdetector(clickDetector)
-                                        task.wait(0.15)
+                                        task.wait(0.1)
                                         buyAttempts = buyAttempts + 1
                                     end
                                 end)
@@ -3967,12 +3304,6 @@ task.spawn(function()
                                     buyAmmoForGun(toolName, AmmoPurchaseCount)
                                 end
                             end
-                        end
-                        
-                        -- POWER MODE FIX: Re-enable power mode if it was active
-                        if wasPowerModeActive then
-                            powerModeActive = true
-                            task.wait(0.1)
                         end
                         
                         buyingGunInProgress = false
@@ -4133,11 +3464,11 @@ task.spawn(function()
     end
 end)
 
-local humanoid = Character:FindFirstChild("Humanoid")
-local bodyEffects = Character and Character:FindFirstChild("BodyEffects")
-local koValue = bodyEffects and bodyEffects:FindFirstChild("K.O")
+humanoid = Character:FindFirstChild("Humanoid")
+bodyEffects = Character and Character:FindFirstChild("BodyEffects")
+koValue = bodyEffects and bodyEffects:FindFirstChild("K.O")
 
-local lastDamagerName = ""
+lastDamagerName = ""
 getgenv().lastHealths = {}
 
 task.spawn(function()
@@ -4156,41 +3487,32 @@ task.spawn(function()
         if not (buyingInProgress or buyingGunInProgress or buyingMaskInProgress) then
             local backpack = localPlayer:FindFirstChild("Backpack")
             if backpack and humanoid and humanoid.Health > 0 and Character then
-                -- DEBOUNCE: Prevent rapid tool switching that causes "tool error"
-                local now = os.clock()
-                if (now - lastEquipAt) < equipCooldown then
-                    -- Skip equip check if we just equipped something
-                else
-                    local equippedCount = 0
-                    local equippedNames = {}
+                local equippedCount = 0
+                local equippedNames = {}
 
-                    for _, tool in ipairs(Character:GetChildren()) do
-                        if isGunTool(tool) then
-                            equippedCount += 1
-                            equippedNames[tool.Name] = true
-                        end
+                for _, tool in ipairs(Character:GetChildren()) do
+                    if isGunTool(tool) then
+                        equippedCount += 1
+                        equippedNames[tool.Name] = true
                     end
+                end
 
-                    if equippedCount < EquipGunCount then
-                        for _, gunKey in ipairs(Guns) do
-                            if DisabledGuns[gunKey] then
-                                continue
-                            end
-                            local gunInfo = gunData[gunKey]
-                            if gunInfo then
-                                local gunName = gunInfo.toolName
-                                if not equippedNames[gunName] then
-                                    local gun = backpack:FindFirstChild(gunName)
-                                    if gun then
-                                        pcall(function()
-                                            humanoid:EquipTool(gun)
-                                        end)
-                                        lastEquipAt = now
-                                        equippedCount += 1
-                                        equippedNames[gunName] = true
-                                        if equippedCount >= EquipGunCount then
-                                            break
-                                        end
+                if equippedCount < EquipGunCount then
+                    for _, gunKey in ipairs(Guns) do
+                        if DisabledGuns[gunKey] then
+                            continue
+                        end
+                        local gunInfo = gunData[gunKey]
+                        if gunInfo then
+                            local gunName = gunInfo.toolName
+                            if not equippedNames[gunName] then
+                                local gun = backpack:FindFirstChild(gunName)
+                                if gun then
+                                    gun.Parent = Character
+                                    equippedCount += 1
+                                    equippedNames[gunName] = true
+                                    if equippedCount >= EquipGunCount then
+                                        break
                                     end
                                 end
                             end
@@ -4202,35 +3524,11 @@ task.spawn(function()
         if autodrop then
             ReplicatedStorage.MainEvent:FireServer("DropMoney", "15000")
         end
-        -- Auto-reset on KO (same as .repair command) with 0.1s delay
+        -- Do NOT auto-kill the stand when KO; it breaks combat commands by constantly resetting the character.
+        -- Only force death when autosave is disabled (legacy behavior).
         if humanoid and koValue and koValue.Value == true then
             if not autoSaveEnabled then
-                -- Perform full state reset
-                performFullReset()
-                task.wait(0.1)
-                -- More reliable reset: some games ignore direct Health=0 in certain states.
-                local char = game.Players.LocalPlayer.Character
-                local hum = char and char:FindFirstChildOfClass("Humanoid")
-                if hum then
-                    for _ = 1, 5 do
-                        pcall(function()
-                            hum.Health = 0
-                        end)
-                        if hum.Health <= 0 then
-                            break
-                        end
-                        task.wait(0.1)
-                    end
-                    -- Fallback: force break joints if still alive
-                    if hum.Health > 0 then
-                        pcall(function()
-                            hum:ChangeState(Enum.HumanoidStateType.Dead)
-                        end)
-                        pcall(function()
-                            char:BreakJoints()
-                        end)
-                    end
-                end
+                humanoid.Health = 0
             end
         end
         if shouldSwitch and #ragebottargets > 0 then
@@ -4471,14 +3769,14 @@ task.spawn(function()
     end
 end)
 
-local function getVehicleRootPart(vehicle)
+function getVehicleRootPart(vehicle)
     if not vehicle then
         return nil
     end
     return vehicle.PrimaryPart or vehicle:FindFirstChildWhichIsA("BasePart", true)
 end
 
-local function findVehicleModel()
+function findVehicleModel()
     if vehicleModel and vehicleModel.Parent then
         return vehicleModel
     end
@@ -4509,7 +3807,7 @@ local function findVehicleModel()
     return vehicleModel
 end
 
-local function getVehicleSeats(vehicle)
+function getVehicleSeats(vehicle)
     if not vehicle then
         return nil, nil
     end
@@ -4527,7 +3825,7 @@ local function getVehicleSeats(vehicle)
     return driverSeat, passengerSeat
 end
 
-local function moveAssembly(part, targetCFrame)
+function moveAssembly(part, targetCFrame)
     if not (part and targetCFrame) then
         return
     end
@@ -4536,7 +3834,7 @@ local function moveAssembly(part, targetCFrame)
     part.CFrame = targetCFrame
 end
 
-local function moveVehicleRootToSeat(rootPart, seatPart, desiredSeatCFrame)
+function moveVehicleRootToSeat(rootPart, seatPart, desiredSeatCFrame)
     if not (rootPart and seatPart and desiredSeatCFrame) then
         return
     end
@@ -4545,7 +3843,7 @@ local function moveVehicleRootToSeat(rootPart, seatPart, desiredSeatCFrame)
     moveAssembly(rootPart, targetRoot)
 end
 
-local function getVehicleDestinationCFrame()
+function getVehicleDestinationCFrame()
     if gotoTarget then
         local targetChar = gotoTarget.Character
         local targetHRP = targetChar and targetChar:FindFirstChild("HumanoidRootPart")
@@ -4557,7 +3855,7 @@ local function getVehicleDestinationCFrame()
     return gotoCFrame
 end
 
-local function tryPurchaseVehicle()
+function tryPurchaseVehicle()
     if not vehiclePurchaseEnabled then
         return false
     end
@@ -4681,8 +3979,8 @@ task.spawn(function()
     end
 end)
 
-local hitboxsize = LowLagMode and 12 or 30
-local lastHitboxUpdate = 0
+hitboxsize = LowLagMode and 12 or 30
+lastHitboxUpdate = 0
 
 deactivatePowerMode = function()
     if not powerModeActive then
@@ -4793,8 +4091,8 @@ activatePowerMode = function()
     sendMessage(" POWER MODE ACTIVATED - Balanced Performance ⚡")
 end
 
-local Players = cloneref(game:GetService("Players"))
-local Client = Players.LocalPlayer
+Players = cloneref(game:GetService("Players"))
+Client = Players.LocalPlayer
 
 RunService.RenderStepped:Connect(function ()
     if perf.hitbox > 0 then
@@ -4833,7 +4131,7 @@ Player.CharacterAdded:Connect(function(newChar)
     koValue = bodyEffects:WaitForChild("K.O")
 end)
 
-local Workspace = game:GetService("Workspace")
+Workspace = game:GetService("Workspace")
 
 for _, v in ipairs(Workspace:GetDescendants()) do
     if v:IsA("Seat") then
@@ -4849,7 +4147,7 @@ Workspace.DescendantAdded:Connect(function(descendant)
     end)
 end)
 
-local antiConnections = {}
+antiConnections = {}
 
 function stripAnimations(character)
     if character:GetAttribute("AntiServerLaggerHandled") then return end
